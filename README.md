@@ -1,8 +1,7 @@
-# WordPress + Apache + Varnish + Caddy (Docker Compose)
+# WordPress + Apache + Varnish (Docker Compose)
 
 Production-oriented Docker stack:
 
-- **Caddy** (TLS termination / reverse proxy)
 - **Varnish** (HTTP cache)
 - **WordPress (Apache)**
 - **MariaDB**
@@ -21,7 +20,7 @@ Production-oriented Docker stack:
    Copy-Item .env.example .env
    ```
 
-2. Edit `.env` with secure passwords and your domain/email.
+2. Edit `.env` with secure passwords.
 
 3. Start stack:
 
@@ -31,7 +30,7 @@ Production-oriented Docker stack:
 
 4. Open:
 
-- `http://localhost` (or your domain in production)
+- `http://localhost`
 
 ## 2) Optional tools
 
@@ -40,13 +39,12 @@ Add your preferred DB admin tool only when needed, or connect directly with a lo
 ## 3) Notes
 
 - Varnish bypasses cache for logged-in/admin/cart/checkout style requests.
-- Caddy handles HTTPS automatically when `SITE_ADDRESS` is a real public domain and DNS points to this server.
-- Data persists in named volumes: `db_data`, `wp_data`, `caddy_data`, `caddy_config`.
+- Data persists in named volumes: `db_data`, `wp_data`.
 
 ## 4) Suggested next improvements
 
 1. **Backups**: add scheduled DB dump + `wp_data` snapshot (daily, offsite).
 2. **Redis object cache**: add Redis container and WordPress Redis plugin.
-3. **WAF/CDN**: place Cloudflare or similar in front for DDoS and WAF.
-4. **Monitoring**: add uptime checks and container metrics (e.g., Uptime Kuma + Prometheus/Grafana).
-5. **Secrets**: move sensitive values to Docker secrets or external secret manager.
+3. **TLS reverse proxy**: add Caddy or Nginx Proxy Manager when moving to production HTTPS.
+4. **WAF/CDN**: place Cloudflare or similar in front for DDoS and WAF.
+5. **Monitoring**: add uptime checks and container metrics (e.g., Uptime Kuma + Prometheus/Grafana).

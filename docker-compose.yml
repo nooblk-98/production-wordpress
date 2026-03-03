@@ -66,24 +66,8 @@ services:
       - :6081
     volumes:
       - ./varnish/default.vcl:/etc/varnish/default.vcl:ro
-    expose:
-      - "6081"
-    networks:
-      - wp_net
-
-  caddy:
-    image: caddy:2.9
-    container_name: wp_caddy
-    restart: unless-stopped
-    depends_on:
-      - varnish
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - "80:6081"
     networks:
       - wp_net
 
@@ -94,5 +78,3 @@ networks:
 volumes:
   db_data:
   wp_data:
-  caddy_data:
-  caddy_config:
