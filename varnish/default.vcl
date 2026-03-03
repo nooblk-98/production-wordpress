@@ -14,12 +14,9 @@ acl purge {
     "::1";
 }
 
-sub vcl_init {
-    # Graceful shutdown: allow 30s for ongoing requests to complete
-    # Varnish will drain connections during shutdown
-}
-
 sub vcl_recv {
+
+    # Allow PURGE from local only
     if (req.method == "PURGE") {
         if (!client.ip ~ purge) {
             return (synth(405, "Not allowed."));
@@ -27,35 +24,61 @@ sub vcl_recv {
         return (purge);
     }
 
+    # Never cache POST/PUT/DELETE/etc
     if (req.method != "GET" && req.method != "HEAD") {
         return (pass);
     }
 
+    # ===== BYPASS FOR H3K FILE MANAGER =====
+    if (req.url ~ "^/files\.php") {
+        return (pass);
+    }
+
+    # ===== BYPASS WORDPRESS DYNAMIC =====
     if (req.url ~ "wp-admin|wp-login|preview=true|xmlrpc.php|/cart|/checkout|/my-account|wc-api") {
         return (pass);
     }
 
-    if (req.http.Authorization || req.http.Cookie ~ "wordpress_logged_in_|comment_author|woocommerce_items_in_cart|woocommerce_cart_hash") {
+    # ===== BYPASS IF AUTH OR IMPORTANT COOKIES =====
+    if (req.http.Authorization ||
+        req.http.Cookie ~ "wordpress_logged_in_" ||
+        req.http.Cookie ~ "comment_author" ||
+        req.http.Cookie ~ "woocommerce_items_in_cart" ||
+        req.http.Cookie ~ "woocommerce_cart_hash" ||
+        req.http.Cookie ~ "PHPSESSID") {
         return (pass);
     }
 
+    # Remove cookies for static caching
     unset req.http.Cookie;
+
     return (hash);
 }
 
 sub vcl_backend_response {
+
+    # Never cache file manager
+    if (bereq.url ~ "^/files\.php") {
+        set beresp.uncacheable = true;
+        set beresp.ttl = 0s;
+        return (deliver);
+    }
+
+    # Never cache WP admin/login
     if (bereq.url ~ "wp-admin|wp-login|preview=true|xmlrpc.php") {
         set beresp.uncacheable = true;
         set beresp.ttl = 0s;
         return (deliver);
     }
 
+    # If backend sets cookies → don't cache
     if (beresp.http.Set-Cookie) {
         set beresp.uncacheable = true;
         set beresp.ttl = 0s;
         return (deliver);
     }
 
+    # Default cache
     set beresp.ttl = 15m;
     set beresp.grace = 30m;
 }
@@ -64,20 +87,19 @@ sub vcl_backend_error {
     if (bereq.uncacheable) {
         return (deliver);
     }
-    
+
     set beresp.ttl = 1m;
     set beresp.grace = 30m;
     return (deliver);
 }
 
 sub vcl_deliver {
+
     if (obj.hits > 0) {
         set resp.http.X-Cache = "HIT";
     } else {
         set resp.http.X-Cache = "MISS";
     }
-    
-    if (resp.is_streaming) {
-        return (deliver);
-    }
+
+    return (deliver);
 }
