@@ -14,6 +14,11 @@ acl purge {
     "::1";
 }
 
+sub vcl_init {
+    # Graceful shutdown: allow 30s for ongoing requests to complete
+    # Varnish will drain connections during shutdown
+}
+
 sub vcl_recv {
     if (req.method == "PURGE") {
         if (!client.ip ~ purge) {
@@ -55,10 +60,24 @@ sub vcl_backend_response {
     set beresp.grace = 30m;
 }
 
+sub vcl_backend_error {
+    if (bereq.uncacheable) {
+        return (deliver);
+    }
+    
+    set beresp.ttl = 1m;
+    set beresp.grace = 30m;
+    return (deliver);
+}
+
 sub vcl_deliver {
     if (obj.hits > 0) {
         set resp.http.X-Cache = "HIT";
     } else {
         set resp.http.X-Cache = "MISS";
+    }
+    
+    if (resp.is_streaming) {
+        return (deliver);
     }
 }
