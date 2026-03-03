@@ -1,0 +1,25 @@
+{
+    email {$CADDY_EMAIL}
+}
+
+{$SITE_ADDRESS:localhost} {
+    encode zstd gzip
+
+    reverse_proxy varnish:6081 {
+        health_uri /wp-login.php
+        health_interval 30s
+        health_timeout 3s
+    }
+
+    header {
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}

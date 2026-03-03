@@ -1,0 +1,98 @@
+services:
+  db:
+    image: mariadb:11
+    container_name: wp_db
+    restart: unless-stopped
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-wordpress}
+      MYSQL_USER: ${MYSQL_USER:-wordpress}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change_me_db_user_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_db_root_password}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - wp_net
+
+  wordpress:
+    image: wordpress:php8.2-apache
+    container_name: wp_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE:-wordpress}
+      WORDPRESS_DB_USER: ${MYSQL_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-change_me_db_user_password}
+      WORDPRESS_TABLE_PREFIX: ${WORDPRESS_TABLE_PREFIX:-wp_}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('DISALLOW_FILE_EDIT', true);
+        define('WP_MEMORY_LIMIT', '256M');
+        define('AUTOMATIC_UPDATER_DISABLED', false);
+    volumes:
+      - wp_data:/var/www/html
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/wp-login.php || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks:
+      - wp_net
+
+  varnish:
+    image: varnish:7.5
+    container_name: wp_varnish
+    restart: unless-stopped
+    depends_on:
+      wordpress:
+        condition: service_healthy
+    command:
+      - varnishd
+      - -F
+      - -f
+      - /etc/varnish/default.vcl
+      - -s
+      - malloc,256m
+      - -a
+      - :6081
+    volumes:
+      - ./varnish/default.vcl:/etc/varnish/default.vcl:ro
+    expose:
+      - "6081"
+    networks:
+      - wp_net
+
+  caddy:
+    image: caddy:2.9
+    container_name: wp_caddy
+    restart: unless-stopped
+    depends_on:
+      - varnish
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - wp_net
+
+networks:
+  wp_net:
+    driver: bridge
+
+volumes:
+  db_data:
+  wp_data:
+  caddy_data:
+  caddy_config:
