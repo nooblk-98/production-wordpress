@@ -56,7 +56,7 @@ sub vcl_backend_response {
         return (deliver);
     }
 
-    set beresp.ttl = 5m;
+    set beresp.ttl = 15m;
     set beresp.grace = 30m;
 }
 
