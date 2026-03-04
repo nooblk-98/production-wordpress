@@ -22,4 +22,4 @@ volumes:
 networks:
   wp_net:
     external: true
-    name: production-wordpress_wp_net
+    name: wordpress-network
