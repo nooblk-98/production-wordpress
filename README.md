@@ -21,10 +21,10 @@ Production-oriented Docker stack:
    cp .env.example .env
    ```
 
-   On Windows PowerShell:
+   Create the shared Docker network (required for inter-service communication):
 
-   ```powershell
-   Copy-Item .env.example .env
+   ```bash
+   docker network create wordpress-network
    ```
 
 2. Edit `.env` with secure passwords.
