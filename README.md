@@ -1,4 +1,4 @@
-# WordPress + Apache + Varnish (Docker Compose)
+# WordPress + Apache + Varnish + Caddy (Docker Compose)
 
 Production-oriented Docker stack:
 
