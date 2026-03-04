@@ -1,37 +1,41 @@
-# Standalone Caddy Edge Proxy
+# Caddy Edge Proxy
 
 This folder contains a separate Docker Compose stack for Caddy with:
 
-- **Custom Caddy build** with Rate Limiting plugin
-- Security headers
+- **Prebuild Caddy image** (`lahiru98s/caddy-extended`) with Rate Limiting plugin included
+- Security headers (X-Frame-Options, X-Content-Type-Options, Strict-Transport-Policy, etc.)
 - Request body size limit
 - Reverse proxy to your existing WordPress/Varnish stack
 - Built-in rate limiting (100 req/min per IP)
+- Automatic HTTPS via Let's Encrypt
 
 ## Quick start
 
-1. Copy env file:
+1. Ensure the main WordPress stack is running and the shared network is created:
+   ```bash
+   docker network create wordpress-network
+   ```
+
+2. Copy env file:
 
    - PowerShell: `Copy-Item .env.example .env`
    - Bash: `cp .env.example .env`
 
-2. Build custom Caddy image:
+3. Edit `.env` with your domain(s) and SSL email.
 
-   - `docker compose build`
+4. Start Caddy stack:
 
-3. Start Caddy stack:
+   ```bash
+   docker compose up -d
+   ```
 
-   - `docker compose up -d`
-
-4. Open:
-
-   - HTTP: `http://localhost:8080`
-   - HTTPS: `https://localhost:8443`
+5. Open your domain with HTTPS enabled.
 
 ## Important for your current setup
 
-- Your main stack currently already binds host port `80` with Varnish.
-- This Caddy stack defaults to `8080/8443` to avoid port conflicts.
+- Caddy binds to host ports **80 and 443** (standard HTTP/HTTPS ports).
+- The main WordPress/Varnish stack is accessed internally via the `wordpress-network`.
+- Varnish port `:8080` is only exposed internally on the Docker network, not to the host.
 
 ## Domain Configuration
 

@@ -57,19 +57,41 @@ Production-oriented Docker stack:
 - **Lower bandwidth**: Less database queries = lower server resource usage
 - **Horizontal scaling ready**: Varnish can be load-balanced across multiple WordPress instances
 
-## 3) Optional tools
+## 3) Caddy Edge Proxy (Optional)
+
+For HTTPS/TLS and additional reverse proxy features, deploy Caddy from the `caddy/` folder:
+
+1. Create the shared Docker network (required for inter-service communication):
+   ```bash
+   docker network create wordpress-network
+   ```
+
+2. In the `caddy/` folder, create `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Update `.env` with your domain(s) and email for SSL certificates.
+
+4. Start Caddy:
+   ```bash
+   cd caddy && docker compose up -d
+   ```
+
+**Note:** The main WordPress stack must be running first. Both stacks communicate via the `wordpress-network` Docker network.
+
+## 4) Optional tools
 
 Add your preferred DB admin tool only when needed, or connect directly with a local SQL client.
 
-## 4) Notes
+## 5) Notes
 
 - Varnish bypasses cache for logged-in/admin/cart/checkout style requests.
 - Data persists in named volumes: `db_data`, `wp_data`.
 
-## 5) Suggested next improvements
+## 6) Suggested next improvements
 
 1. **Backups**: add scheduled DB dump + `wp_data` snapshot (daily, offsite).
 2. **Redis object cache**: add Redis container and WordPress Redis plugin.
-3. **TLS reverse proxy**: add Caddy or Nginx Proxy Manager when moving to production HTTPS.
-4. **WAF/CDN**: place Cloudflare or similar in front for DDoS and WAF.
-5. **Monitoring**: add uptime checks and container metrics (e.g., Uptime Kuma + Prometheus/Grafana).
+3. **WAF/CDN**: place Cloudflare or similar in front for DDoS and WAF.
+4. **Monitoring**: add uptime checks and container metrics (e.g., Uptime Kuma + Prometheus/Grafana).
