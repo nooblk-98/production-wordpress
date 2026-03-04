@@ -1,10 +1,21 @@
 {
     email {$CADDY_EMAIL}
-    admin off
+    servers {
+        metrics
+    }
 }
 
 {$SITE_HOST:localhost} {
     encode zstd gzip
+
+    # Rate limiting: 100 requests per minute per IP
+    rate_limit {
+        zone dynamic_zone {
+            key {remote_host}
+            events 100
+            window 1m
+        }
+    }
 
     request_body {
         max_size {$MAX_BODY_SIZE:25MB}
@@ -22,7 +33,7 @@
         -Server
     }
 
-    reverse_proxy {$UPSTREAM:host.docker.internal:80} {
+    reverse_proxy {$UPSTREAM:wp_varnish:6081} {
         health_uri /wp-login.php
         health_interval 30s
         health_timeout 5s
@@ -37,4 +48,9 @@
         output stdout
         format console
     }
+}
+
+# Prometheus metrics endpoint
+:2019 {
+    metrics /metrics
 }
