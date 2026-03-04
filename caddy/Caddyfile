@@ -1,10 +1,8 @@
 {
     email {$CADDY_EMAIL}
-    servers {
-        metrics
-    }
 }
 
+# Main site block - supports multiple domains
 {$SITE_HOST:localhost} {
     encode zstd gzip
 
@@ -48,9 +46,4 @@
         output stdout
         format console
     }
-}
-
-# Prometheus metrics endpoint
-:2019 {
-    metrics /metrics
 }
