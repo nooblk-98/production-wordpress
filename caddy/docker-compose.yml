@@ -1,8 +1,6 @@
 services:
   caddy:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: lahiru98s/caddy-extended
     container_name: edge_caddy
     restart: unless-stopped
     env_file:
