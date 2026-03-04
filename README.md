@@ -5,6 +5,13 @@ Production-oriented Docker stack:
 - **Varnish** (HTTP cache)
 - **WordPress (Apache)**
 - **MariaDB**
+- **Caddy** (Reverse proxy + HTTPS)
+
+## Documentation
+
+- [Main Stack](README.md) - Core WordPress, Varnish, and MariaDB setup
+- [Caddy Edge Proxy](caddy/README.md) - HTTPS termination, rate limiting, security headers
+- [Varnish Cache](varnish/README.md) - Cache configuration, TTL, and bypass rules
 
 ## 1) Quick start
 

@@ -9,6 +9,8 @@ This folder contains a separate Docker Compose stack for Caddy with:
 - Built-in rate limiting (100 req/min per IP)
 - Automatic HTTPS via Let's Encrypt
 
+**Part of:** [Production WordPress Stack](../README.md) | [Varnish Cache](../varnish/README.md)
+
 ## Quick start
 
 1. Ensure the main WordPress stack is running and the shared network is created:
@@ -55,58 +57,135 @@ This setup will serve both `www.example.com` and `example.com` with the same con
 
 **Auto HTTPS:** Caddy automatically obtains and renews SSL certificates from Let's Encrypt for all domains listed.
 
-## Plugins Included
+## Features
 
-### Rate Limiting
+### 1. Rate Limiting
 - **Default**: 100 requests per minute per IP
-- Protects against brute force and abuse
-- Configured in `Caddyfile` under `rate_limit` directive
+- Protects against brute force attacks and DDoS attempts
+- Configured per IP address (remote host)
+- Adjust in `Caddyfile`:
+  ```
+  rate_limit {
+      zone dynamic_zone {
+          key {remote_host}
+          events 100      # Max requests
+          window 1m       # Time window
+      }
+  }
+  ```
 
-To adjust limits, edit `Caddyfile`:
+### 2. Security Headers
+Automatically adds security headers to all responses:
+- `X-Frame-Options: SAMEORIGIN` - Prevents clickjacking
+- `X-Content-Type-Options: nosniff` - Prevents MIME type sniffing
+- `Referrer-Policy: strict-origin-when-cross-origin` - Controls referrer info
+- `Permissions-Policy` - Disables camera, microphone, geolocation
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload` - Forces HTTPS
+
+### 3. XML-RPC Blocking
+Blocks dangerous XML-RPC endpoint at `/xmlrpc.php`:
+- Prevents brute force attacks on WordPress
+- Blocks pingback spam
+- Returns HTTP 403 Forbidden
+
+### 4. Request Body Size Limit
+- **Default**: 25MB max request body size (configurable via `MAX_BODY_SIZE` in `.env`)
+- Protects against buffer overflow attacks
+- Prevents large file uploads that could crash the server
+
+### 5. HTTP Compression
+Automatically compresses responses with:
+- **zstd** - Best compression ratio (modern browsers)
+- **gzip** - Fallback for older browsers
+- Reduces bandwidth usage by 70-90%
+
+### 6. Automatic HTTPS
+- Obtains free SSL/TLS certificates from Let's Encrypt
+- Auto-renews before expiration
+- Supports multiple domains
+- HTTP to HTTPS redirects automatically
+
+### 7. Reverse Proxy
+- Routes all traffic to WordPress/Varnish backend
+- Connection pooling for better performance
+- Configurable timeout settings:
+  - Read/Write timeout: 30s
+  - Dial timeout: 5s
+
+### 8. Logging
+- Full access logs in console format
+- Easy debugging with structured logging
+- View logs: `docker compose logs -f caddy`
+
+## Configuration
+
+### Environment Variables (`.env`)
+
+```env
+# Your domain(s) - space-separated for multiple domains
+SITE_HOST=www.example.com example.com
+
+# Email for Let's Encrypt SSL certificate notifications
+CADDY_EMAIL=admin@example.com
+
+# Maximum request body size (default: 25MB)
+MAX_BODY_SIZE=25MB
+
+# Backend upstream (normally wp_varnish:6081)
+UPSTREAM=wp_varnish:6081
 ```
-rate_limit {
-    zone dynamic_zone {
-        key {remote_host}
-        events 100      # Max requests
-        window 1m       # Time window
-    }
+
+### Auto-Adjust Rate Limiting
+
+Edit `Caddyfile` to change rate limit rules:
+
+**Strict**: 50 req/minute
+```
+events 50
+window 1m
+```
+
+**Relaxed**: 500 req/minute
+```
+events 500
+window 1m
+```
+
+**Sliding window**: 60 req per 10 seconds
+```
+events 60
+window 10s
+```
+
+### Adjust Body Size Limit
+
+Update `.env`:
+```env
+MAX_BODY_SIZE=100MB
+```
+
+Or directly in `Caddyfile`:
+```
+request_body {
+    max_size 100MB
 }
 ```
 
-### Prometheus Metrics
-- **Use Node Exporter** for system-level metrics (CPU, memory, disk, network)
-- **Install Node Exporter** on your host or as a Docker container
-- Add to your Prometheus `scrape_configs`:
-
-```yaml
-- job_name: 'node'
-  static_configs:
-    - targets: ['node-exporter:9100']
-```
-
-**Why Node Exporter instead of Caddy metrics?**
-- Provides comprehensive system monitoring (not just Caddy)
-- Works across all containers in your stack
-- Industry standard for infrastructure monitoring
-- Lighter weight than Caddy metrics endpoint
-
-## Security recommendations
-
-1. **Rate limiting enabled**: 100 req/min per IP (adjust in Caddyfile if needed)
-2. Keep XML-RPC blocked unless explicitly required.
-3. Use strong WordPress admin passwords + MFA plugin.
-4. Keep plugin/theme updates automatic where possible.
-5. Put CDN/WAF (Cloudflare, etc.) in front for DDoS and bot filtering.
-6. Monitor Node Exporter for unusual system metrics.
-
 ## Monitoring
 
-Check Caddy logs:
+### View Logs
 ```bash
 docker compose logs -f caddy
 ```
 
-### Setup Node Exporter
+Check for errors:
+```bash
+docker compose logs caddy | grep ERROR
+```
+
+### System Metrics
+
+Use Node Exporter for system-level monitoring (CPU, memory, disk, network):
 
 Add to main stack's `docker-compose.yml`:
 ```yaml
@@ -124,5 +203,52 @@ Add to main stack's `docker-compose.yml`:
     ports:
       - "9100:9100"
     networks:
-      - wp_net
+      - wordpress-network
 ```
+
+Add to Prometheus `scrape_configs`:
+```yaml
+- job_name: 'node'
+  static_configs:
+    - targets: ['node-exporter:9100']
+```
+
+## Security Best Practices
+
+1. ✅ **Rate limiting enabled** - 100 req/min per IP (adjust if needed)
+2. ✅ **XML-RPC blocked** - Prevents brute force and pingback spam
+3. ✅ **Security headers** - All modern headers configured
+4. ✅ **HTTPS enforced** - Automatic Let's Encrypt certificates
+5. ✅ **Body size limited** - Prevents buffer overflow attacks
+6. ⚠️ **Use strong WordPress passwords** - MFA plugin recommended
+7. ⚠️ **Keep updates current** - Enable auto-updates for plugins/themes
+8. ⚠️ **Add CDN/WAF** - Place Cloudflare or Bunny WAF in front for additional DDoS protection
+
+## Troubleshooting
+
+### "no upstreams available" error
+- Ensure WordPress stack is running: `docker ps | grep wp_`
+- Verify network exists: `docker network ls | grep wordpress-network`
+- Check WordPress container is healthy: `docker compose logs wp_app`
+
+### Certificate renewal failing
+- Ensure port 443 is accessible from the internet
+- Check certificate logs: `docker compose logs caddy | grep certificate`
+- Rate limiting may need adjustment if Let's Encrypt tries too frequently
+
+### High rate limit rejections?
+- Increase limit in `.env` or `Caddyfile`
+- Check if legitimate traffic is being blocked: `docker compose logs caddy | grep "rate_limit"`
+- Whitelist trusted IPs if needed (edit `Caddyfile`)
+
+### Connection timeouts
+- Increase timeout values in `Caddyfile` if backend is slow
+- Check WordPress/Varnish performance
+- Monitor resource usage with Node Exporter
+
+## Performance Tips
+
+1. **Cache-friendly headers** - Ensure Varnish caching rules work with Caddy
+2. **Compression** - zstd/gzip enabled by default, reduces bandwidth 70-90%
+3. **Connection pooling** - Caddy reuses connections to backend
+4. **Rate limiting** - Prevents resource exhaustion from abuse

@@ -1,5 +1,7 @@
 # Varnish Cache Configuration
 
+**Part of:** [Production WordPress Stack](../README.md) | [Caddy Edge Proxy](../caddy/README.md)
+
 ## Cache TTL
 - **Default TTL**: 15 minutes
 - **Grace Period**: 30 minutes (serves stale content if backend is slow)
