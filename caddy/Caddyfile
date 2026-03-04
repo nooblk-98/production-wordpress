@@ -40,6 +40,11 @@
         }
     }
 
+    handle_errors {
+        @rate_limited expression `{err.status_code} == 429`
+        respond @rate_limited "{$RATE_LIMIT_MESSAGE:This site is protected from bots. You sent too many requests, and we detected your IP as spam. Please try loading the site again in a few seconds.}" 429
+    }
+
     log {
         output stdout
         format console

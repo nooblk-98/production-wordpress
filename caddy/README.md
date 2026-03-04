@@ -131,6 +131,7 @@ MAX_BODY_SIZE=25MB
 RATE_LIMIT_ENABLED=true              # Enable/disable rate limiting
 RATE_LIMIT_EVENTS=100                # Max requests per window
 RATE_LIMIT_WINDOW=1m                 # Time window (1m, 10s, etc.)
+RATE_LIMIT_MESSAGE=This site is protected from bots. You sent too many requests, and we detected your IP as spam. Please try loading the site again in a few seconds.
 
 # Backend upstream (normally wp_varnish:6081)
 UPSTREAM=wp_varnish:6081
