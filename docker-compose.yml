@@ -71,12 +71,6 @@ services:
     networks:
       - wp_net
 
-  redis:
-    image: redis:latest
-    container_name: redis
-    networks:
-      - wp_net
-
 networks:
   wp_net:
     driver: bridge
