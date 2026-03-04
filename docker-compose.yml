@@ -43,10 +43,11 @@ services:
     expose:
       - "80"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost/wp-login.php || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost/ >/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
+      start_period: 30s
     networks:
       - wp_net
 
