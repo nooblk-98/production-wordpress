@@ -60,18 +60,14 @@ This setup will serve both `www.example.com` and `example.com` with the same con
 ## Features
 
 ### 1. Rate Limiting
-- **Default**: 100 requests per minute per IP
+- **Enabled by default**: 100 requests per minute per IP
+- **Disable**: Set `RATE_LIMIT_ENABLED=false` in `.env` and comment out the `rate_limit` block in `Caddyfile`
 - Protects against brute force attacks and DDoS attempts
 - Configured per IP address (remote host)
-- Adjust in `Caddyfile`:
-  ```
-  rate_limit {
-      zone dynamic_zone {
-          key {remote_host}
-          events 100      # Max requests
-          window 1m       # Time window
-      }
-  }
+- Adjust in `.env`:
+  ```env
+  RATE_LIMIT_EVENTS=100      # Max requests
+  RATE_LIMIT_WINDOW=1m       # Time window
   ```
 
 ### 2. Security Headers
@@ -131,31 +127,41 @@ CADDY_EMAIL=admin@example.com
 # Maximum request body size (default: 25MB)
 MAX_BODY_SIZE=25MB
 
+# Rate Limiting Configuration
+RATE_LIMIT_ENABLED=true              # Enable/disable rate limiting
+RATE_LIMIT_EVENTS=100                # Max requests per window
+RATE_LIMIT_WINDOW=1m                 # Time window (1m, 10s, etc.)
+
 # Backend upstream (normally wp_varnish:6081)
 UPSTREAM=wp_varnish:6081
 ```
 
+### Disable Rate Limiting
+
+To completely disable rate limiting:
+
+1. Set in `.env`:
+   ```env
+   RATE_LIMIT_ENABLED=false
+   ```
+
+2. Comment out the `rate_limit` block in `Caddyfile`:
+   ```
+   # rate_limit {
+   #     zone dynamic_zone {
+   #         key {remote_host}
+   #         events {$RATE_LIMIT_EVENTS:100}
+   #         window {$RATE_LIMIT_WINDOW:1m}
+   #     }
+   # }
+   ```
+
+3. Reload Caddy:
+   ```bash
+   docker compose down && docker compose up -d
+   ```
+
 ### Auto-Adjust Rate Limiting
-
-Edit `Caddyfile` to change rate limit rules:
-
-**Strict**: 50 req/minute
-```
-events 50
-window 1m
-```
-
-**Relaxed**: 500 req/minute
-```
-events 500
-window 1m
-```
-
-**Sliding window**: 60 req per 10 seconds
-```
-events 60
-window 10s
-```
 
 ### Adjust Body Size Limit
 

@@ -6,12 +6,13 @@
 {$SITE_HOST:localhost} {
     encode zstd gzip
 
-    # Rate limiting: 100 requests per minute per IP
+    # Rate limiting: {$RATE_LIMIT_EVENTS} requests per {$RATE_LIMIT_WINDOW} per IP
+    # To disable: set RATE_LIMIT_ENABLED=false in .env or comment out this block
     rate_limit {
         zone dynamic_zone {
             key {remote_host}
-            events 100
-            window 1m
+            events {$RATE_LIMIT_EVENTS:100}
+            window {$RATE_LIMIT_WINDOW:1m}
         }
     }
 
