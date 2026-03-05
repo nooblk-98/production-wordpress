@@ -3,10 +3,13 @@
 **Part of:** [Production WordPress Stack](../README.md) | [Caddy Edge Proxy](../caddy/README.md)
 
 ## Cache TTL
-- **Default TTL**: 15 minutes
+- **Default TTL**: 7 days (604800s)
 - **Grace Period**: 30 minutes (serves stale content if backend is slow)
 - **Error Cache**: 1 minute
 - **4xx Responses**: Not cached (prevents stale missing-asset responses)
+
+## Query Params (Bypass)
+- Requests containing `__SID` or `noCache` bypass cache.
 
 ## Pages & Content CACHED ✅
 - Public blog posts
@@ -18,13 +21,12 @@
 
 ## Pages & Content NOT CACHED ❌
 - `wp-admin` - WordPress admin panel
-- `wp-login` - Login page
+- `wp-login.php` - Login page
 - `preview=true` - Preview mode
 - `xmlrpc.php` - XML-RPC API
-- `/cart` - WooCommerce cart
-- `/checkout` - WooCommerce checkout
-- `/my-account` - User account pages
-- `wc-api` - WooCommerce API
+- `/cart/` - WooCommerce cart
+- `/checkout/` - WooCommerce checkout
+- `/my-account/` - User account pages
 
 ## User Sessions NOT CACHED ❌
 - Logged-in users (any WordPress session cookie)

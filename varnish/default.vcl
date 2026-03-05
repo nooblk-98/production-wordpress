@@ -1,162 +1,167 @@
 vcl 4.1;
 
+import std;
+
 backend default {
     .host = "wordpress";
     .port = "80";
-    .max_connections = 100;
-    .connect_timeout = 10s;
-    .first_byte_timeout = 120s;
-    .between_bytes_timeout = 60s;
+    .first_byte_timeout = 600s;
 }
 
-acl purge {
+acl purger {
     "localhost";
     "127.0.0.1";
-    "::1";
+    "172.17.0.1";
 }
 
 sub vcl_recv {
-
-    # Allow PURGE from local only
-    if (req.method == "PURGE") {
-        if (!client.ip ~ purge) {
-            return (synth(405, "Not allowed."));
-        }
-        return (purge);
+    if (req.restarts > 0) {
+        set req.hash_always_miss = true;
     }
 
-    # Never cache POST/PUT/DELETE/etc
+    # return (pass);
+
+    if (req.method == "PURGE") {
+        if (client.ip !~ purger) {
+            return (synth(405, "Method not allowed"));
+        }
+        if (req.http.X-Cache-Tags) {
+            ban("obj.http.X-Cache-Tags ~ " + req.http.X-Cache-Tags);
+        } else {
+            ban("req.http.host == " + req.http.host + " && req.url ~ " + req.url);
+            return (synth(200, "Purged"));
+        }
+        return (synth(200, "Purged"));
+    }
+
+    if (req.method != "GET" &&
+        req.method != "HEAD" &&
+        req.method != "PUT" &&
+        req.method != "POST" &&
+        req.method != "TRACE" &&
+        req.method != "OPTIONS" &&
+        req.method != "DELETE") {
+        # Non-RFC2616 or CONNECT which is weird.
+        return (pipe);
+    }
+
+    # We only deal with GET and HEAD by default
     if (req.method != "GET" && req.method != "HEAD") {
         return (pass);
     }
 
-    # ===== BYPASS FOR H3K FILE MANAGER =====
-    if (req.url ~ "^/files\.php") {
+    # Set initial grace period usage status
+    set req.http.grace = "none";
+
+    # Normalize URL in case of leading HTTP scheme and domain
+    set req.url = regsub(req.url, "^http[s]?://", "");
+
+    # Collect all cookies
+    std.collect(req.http.Cookie);
+
+    if (req.url ~ "^/admin/" || req.url ~ "/paypal/") {
         return (pass);
     }
 
-    # ===== BYPASS WORDPRESS DYNAMIC =====
-    if (req.url ~ "wp-admin|wp-login|preview=true|xmlrpc.php|/cart|/checkout|/my-account|wc-api") {
+    if (req.http.cookie ~ "wordpress_logged_in_") {
         return (pass);
     }
 
-    # ===== BYPASS IF AUTH OR IMPORTANT COOKIES =====
-    if (req.http.Authorization ||
-        req.http.Cookie ~ "wordpress_logged_in_" ||
-        req.http.Cookie ~ "wordpress_sec_" ||
-        req.http.Cookie ~ "wp-settings-" ||
-        req.http.Cookie ~ "wp-settings-time-" ||
-        req.http.Cookie ~ "wordpress_test_cookie" ||
-        req.http.Cookie ~ "comment_author" ||
-        req.http.Cookie ~ "woocommerce_items_in_cart" ||
-        req.http.Cookie ~ "woocommerce_cart_hash" ||
-        req.http.Cookie ~ "PHPSESSID") {
-        return (pass);
-    }
-
-    # Static assets are always safe to cache aggressively
-    if (req.url ~ "(?i)\.(css|js|jpg|jpeg|png|gif|webp|svg|ico|woff2?|ttf|eot|mp4|webm|avif)(\?.*)?$") {
-        unset req.http.Cookie;
-        return (hash);
-    }
-
-    # Drop common tracking cookies only; keep functional/plugin cookies out of shared cache
-    if (req.http.Cookie) {
-        set req.http.Cookie = regsuball(req.http.Cookie, "(^|;\\s*)(_ga|_gid|_gat|_fbp|_gcl_au|_hjSessionUser_[^=]*|_hjSession_[^=]*|__stripe_mid|__stripe_sid|tk_ai)=[^;]*", "");
-        set req.http.Cookie = regsuball(req.http.Cookie, "^;\\s*|;\\s*$", "");
-        set req.http.Cookie = regsuball(req.http.Cookie, ";\\s*;", "; ");
-
-        if (req.http.Cookie != "") {
-            return (pass);
+    if (req.http.Accept-Encoding) {
+        if (req.url ~ "\\.(jpg|jpeg|png|gif|gz|tgz|bz2|tbz|mp3|ogg|swf|flv)$") {
+            # No point in compressing these
+            unset req.http.Accept-Encoding;
+        } elsif (req.http.Accept-Encoding ~ "gzip") {
+            set req.http.Accept-Encoding = "gzip";
+        } elsif (req.http.Accept-Encoding ~ "deflate" && req.http.user-agent !~ "MSIE") {
+            set req.http.Accept-Encoding = "deflate";
+        } else {
+            # Unknown algorithm
+            unset req.http.Accept-Encoding;
         }
-        unset req.http.Cookie;
+    }
+
+    if (req.url ~ "(\\?|&)(gclid|cx|ie|cof|siteurl|zanpid|origin|fbclid|mc_[a-z]+|utm_[a-z]+|_bta_[a-z]+)=") {
+        set req.url = regsuball(req.url, "(gclid|cx|ie|cof|siteurl|zanpid|origin|fbclid|mc_[a-z]+|utm_[a-z]+|_bta_[a-z]+)=[-_A-z0-9+()%.]+&?", "");
+        set req.url = regsub(req.url, "[?|&]+$", "");
+    }
+
+    if (req.http.Authorization ~ "^Bearer") {
+        return (pass);
     }
 
     return (hash);
 }
 
-sub vcl_backend_response {
-
-    # Retry transient upstream failures first (helps cold first-load bursts)
-    if (beresp.status == 502 || beresp.status == 503 || beresp.status == 504) {
-        if (bereq.retries < 2) {
-            return (retry);
-        }
-        set beresp.uncacheable = true;
-        set beresp.ttl = 0s;
-        return (deliver);
+sub vcl_hash {
+    if (req.http.host) {
+        hash_data(req.http.host);
+    } else {
+        hash_data(server.ip);
     }
-
-    # Never cache backend errors
-    if (beresp.status >= 500) {
-        set beresp.uncacheable = true;
-        set beresp.ttl = 0s;
-        return (deliver);
-    }
-
-    # Avoid caching 4xx responses (especially missing assets) so fixes appear immediately
-    if (beresp.status >= 400) {
-        set beresp.uncacheable = true;
-        set beresp.ttl = 0s;
-        return (deliver);
-    }
-
-    # Never cache file manager
-    if (bereq.url ~ "^/files\.php") {
-        set beresp.uncacheable = true;
-        set beresp.ttl = 0s;
-        return (deliver);
-    }
-
-    # Never cache WP admin/login
-    if (bereq.url ~ "wp-admin|wp-login|preview=true|xmlrpc.php") {
-        set beresp.uncacheable = true;
-        set beresp.ttl = 0s;
-        return (deliver);
-    }
-
-    # If backend sets cookies → don't cache
-    if (beresp.http.Set-Cookie) {
-        set beresp.uncacheable = true;
-        set beresp.ttl = 0s;
-        return (deliver);
-    }
-
-    # Static assets: keep hot and serve stale if backend is unstable
-    if (bereq.url ~ "(?i)\.(css|js|jpg|jpeg|png|gif|webp|svg|ico|woff2?|ttf|eot|mp4|webm|avif)(\?.*)?$") {
-        unset beresp.http.Set-Cookie;
-        set beresp.ttl = 24h;
-        set beresp.grace = 72h;
-        set beresp.keep = 24h;
-        return (deliver);
-    }
-
-    # Default cache
-    set beresp.ttl = 15m;
-    set beresp.grace = 30m;
+    return (lookup);
 }
 
-sub vcl_backend_error {
-    if (bereq.retries < 2) {
-        return (retry);
+sub vcl_backend_response {
+    set beresp.grace = 3d;
+
+    if (beresp.http.content-type ~ "text") {
+        set beresp.do_esi = true;
     }
 
-    if (bereq.uncacheable) {
+    if (beresp.http.content-type ~ "text") {
+        set beresp.do_gzip = true;
+    }
+
+    # Cache only successful responses and 404s that are not marked as private
+    if (beresp.status != 200 && beresp.status != 404 && beresp.http.Cache-Control ~ "private") {
+        set beresp.uncacheable = true;
+        set beresp.ttl = 86400s;
         return (deliver);
     }
 
-    set beresp.ttl = 1m;
-    set beresp.grace = 30m;
+    # Validate if we need to cache it and prevent from setting cookie
+    if (beresp.ttl > 0s && (bereq.method == "GET" || bereq.method == "HEAD")) {
+        unset beresp.http.set-cookie;
+    }
+
+    if (!beresp.http.cache-control) {
+        set beresp.ttl = 0s;
+        set beresp.uncacheable = true;
+    }
+
     return (deliver);
 }
 
 sub vcl_deliver {
+    set resp.http.X-Cache-Age = resp.http.Age;
+    unset resp.http.Age;
 
-    if (obj.hits > 0) {
-        set resp.http.X-Cache = "HIT";
-    } else {
-        set resp.http.X-Cache = "MISS";
+    # Avoid being cached by the browser.
+    if (resp.http.Cache-Control !~ "private") {
+        set resp.http.Pragma = "no-cache";
+        set resp.http.Expires = "-1";
+        set resp.http.Cache-Control = "no-store, no-cache, must-revalidate, max-age=0";
     }
 
+    unset resp.http.X-Powered-By;
+    unset resp.http.Server;
+    unset resp.http.X-Varnish;
+    unset resp.http.Via;
+    unset resp.http.Link;
+    unset resp.http.X-Frame-Options;
+    unset resp.http.X-Content-Type-Options;
+    unset resp.http.X-Xss-Protection;
+    unset resp.http.Referer-Policy;
+    unset resp.http.X-Permitted-cross-domain-policies;
+
+    return (deliver);
+}
+
+sub vcl_hit {
+    if (obj.ttl >= 0s) {
+        return (deliver);
+    }
+    set req.http.grace = "unlimited (unhealthy server)";
     return (deliver);
 }
