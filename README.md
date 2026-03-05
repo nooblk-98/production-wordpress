@@ -1,9 +1,11 @@
 ﻿<div align="center">
   <img src="./images/logo.png" width="360" alt="status-page logo" />
 
-  </div>
 
 # WordPress + Apache + Varnish + Caddy (Docker Compose)
+</div>
+
+
 
 Production-oriented Docker stack:
 
