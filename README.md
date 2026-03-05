@@ -14,6 +14,7 @@
 - [Main Stack](README.md) - Core WordPress, Varnish, and MariaDB setup
 - [Caddy Edge Proxy](caddy/README.md) - HTTPS termination, rate limiting, security headers
 - [Varnish Cache](varnish/README.md) - Cache configuration, TTL, and bypass rules
+- [PHP Configuration](php/custom.ini) - Production-optimized PHP settings
 
 ## 1) Quick start
 
@@ -66,7 +67,39 @@
 - **Lower bandwidth**: Less database queries = lower server resource usage
 - **Horizontal scaling ready**: Varnish can be load-balanced across multiple WordPress instances
 
-## 3) Caddy Edge Proxy (Optional)
+## 3) PHP Configuration
+
+The stack includes optimized PHP settings in `php/custom.ini` for production use:
+
+### Performance Optimizations
+- **OPcache**: Enabled with 128MB memory, caches compiled PHP code for faster execution
+- **Realpath cache**: 4MB cache reduces filesystem lookups
+- **Output buffering**: 4KB buffer improves response handling
+
+### Security Hardening
+- **Disabled functions**: Blocks dangerous functions (exec, shell_exec, system, etc.)
+- **Session security**: HTTPOnly, Secure, and SameSite cookie protections
+- **PHP version hidden**: `expose_php = Off` prevents version disclosure
+- **Error handling**: Errors logged but not displayed to prevent information leakage
+
+### Resource Limits
+- **Upload size**: 64MB for media/plugin uploads
+- **Memory limit**: 256MB for PHP processes
+- **Execution time**: 300 seconds for long operations
+- **Input variables**: 3000 for large forms/menus
+
+### Customization
+Edit `php/custom.ini` to adjust settings for your needs. For development environments, consider:
+- Setting `display_errors = On`
+- Setting `opcache.validate_timestamps = 1`
+- Removing the `disable_functions` line
+
+Changes take effect after restarting the WordPress container:
+```bash
+docker compose restart wordpress
+```
+
+## 4) Caddy Edge Proxy (Optional)
 
 For HTTPS/TLS and additional reverse proxy features, deploy Caddy from the `caddy/` folder:
 
@@ -89,16 +122,16 @@ For HTTPS/TLS and additional reverse proxy features, deploy Caddy from the `cadd
 
 **Note:** The main WordPress stack must be running first. Both stacks communicate via the `wordpress-network` Docker network.
 
-## 4) Optional tools
+## 5) Optional tools
 
 Add your preferred DB admin tool only when needed, or connect directly with a local SQL client.
 
-## 5) Notes
+## 6) Notes
 
 - Varnish bypasses cache for logged-in/admin/cart/checkout style requests.
 - Data persists in named volumes: `db_data`, `wp_data`.
 
-## 6) Suggested next improvements
+## 7) Suggested next improvements
 
 1. **Backups**: add scheduled DB dump + `wp_data` snapshot (daily, offsite).
 2. **Redis object cache**: add Redis container and WordPress Redis plugin.
