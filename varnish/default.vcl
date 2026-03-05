@@ -43,6 +43,10 @@ sub vcl_recv {
     # ===== BYPASS IF AUTH OR IMPORTANT COOKIES =====
     if (req.http.Authorization ||
         req.http.Cookie ~ "wordpress_logged_in_" ||
+        req.http.Cookie ~ "wordpress_sec_" ||
+        req.http.Cookie ~ "wp-settings-" ||
+        req.http.Cookie ~ "wp-settings-time-" ||
+        req.http.Cookie ~ "wordpress_test_cookie" ||
         req.http.Cookie ~ "comment_author" ||
         req.http.Cookie ~ "woocommerce_items_in_cart" ||
         req.http.Cookie ~ "woocommerce_cart_hash" ||
@@ -50,8 +54,23 @@ sub vcl_recv {
         return (pass);
     }
 
-    # Remove cookies for static caching
-    unset req.http.Cookie;
+    # Static assets are always safe to cache aggressively
+    if (req.url ~ "(?i)\.(css|js|jpg|jpeg|png|gif|webp|svg|ico|woff2?|ttf|eot|mp4|webm|avif)(\?.*)?$") {
+        unset req.http.Cookie;
+        return (hash);
+    }
+
+    # Drop common tracking cookies only; keep functional/plugin cookies out of shared cache
+    if (req.http.Cookie) {
+        set req.http.Cookie = regsuball(req.http.Cookie, "(^|;\\s*)(_ga|_gid|_gat|_fbp|_gcl_au|_hjSessionUser_[^=]*|_hjSession_[^=]*|__stripe_mid|__stripe_sid|tk_ai)=[^;]*", "");
+        set req.http.Cookie = regsuball(req.http.Cookie, "^;\\s*|;\\s*$", "");
+        set req.http.Cookie = regsuball(req.http.Cookie, ";\\s*;", "; ");
+
+        if (req.http.Cookie != "") {
+            return (pass);
+        }
+        unset req.http.Cookie;
+    }
 
     return (hash);
 }

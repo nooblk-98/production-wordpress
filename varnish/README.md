@@ -30,9 +30,17 @@
 - Requests with Authorization headers
 - Users with cookies:
   - `wordpress_logged_in_`
+  - `wordpress_sec_`
+  - `wp-settings-*`
+  - `wordpress_test_cookie`
   - `comment_author`
   - `woocommerce_items_in_cart`
   - `woocommerce_cart_hash`
+
+Additional behavior:
+- Static assets (`.css`, `.js`, images, fonts, media) are cached even when cookies are present.
+- Non-essential analytics cookies are stripped before hashing.
+- If any functional/plugin cookie remains, the request bypasses cache to avoid mixed page elements.
 
 ## Request Methods
 - **Cached**: GET, HEAD
