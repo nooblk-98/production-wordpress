@@ -6,6 +6,7 @@
 - **Default TTL**: 15 minutes
 - **Grace Period**: 30 minutes (serves stale content if backend is slow)
 - **Error Cache**: 1 minute
+- **4xx Responses**: Not cached (prevents stale missing-asset responses)
 
 ## Pages & Content CACHED ✅
 - Public blog posts

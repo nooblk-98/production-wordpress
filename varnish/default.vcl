@@ -94,6 +94,13 @@ sub vcl_backend_response {
         return (deliver);
     }
 
+    # Avoid caching 4xx responses (especially missing assets) so fixes appear immediately
+    if (beresp.status >= 400) {
+        set beresp.uncacheable = true;
+        set beresp.ttl = 0s;
+        return (deliver);
+    }
+
     # Never cache file manager
     if (bereq.url ~ "^/files\.php") {
         set beresp.uncacheable = true;
