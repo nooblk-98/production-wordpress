@@ -5,7 +5,7 @@
 </div>
 
 
-Production-oriented Docker stack:
+## Production oriented Docker stack:
 
 - **Varnish** (HTTP cache)
 - **WordPress (Apache)**
