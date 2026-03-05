@@ -46,7 +46,7 @@
 
 5. Open:
 
-- `http://localhost`
+- `http://localhost:8080`
 
 ## 2) Benefits of This Configuration
 
