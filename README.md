@@ -1,4 +1,7 @@
-![NoobWRT Dashboard](/images/logo.png)
+﻿<div align="center">
+  <img src="./images/logo.svg" width="360" alt="status-page logo" />
+
+  </div>
 
 # WordPress + Apache + Varnish + Caddy (Docker Compose)
 
