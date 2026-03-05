@@ -40,6 +40,7 @@ services:
         define('AUTOMATIC_UPDATER_DISABLED', false);
     volumes:
       - /opt/www/wordpress:/var/www/html
+      - ./php/custom.ini:/usr/local/etc/php/conf.d/custom.ini
     expose:
       - "80"
     healthcheck:
