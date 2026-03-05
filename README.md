@@ -133,7 +133,4 @@ Add your preferred DB admin tool only when needed, or connect directly with a lo
 
 ## 7) Suggested next improvements
 
-1. **Backups**: add scheduled DB dump + `wp_data` snapshot (daily, offsite).
-2. **Redis object cache**: add Redis container and WordPress Redis plugin.
-3. **WAF/CDN**: place Cloudflare or similar in front for DDoS and WAF.
-4. **Monitoring**: add uptime checks and container metrics (e.g., Uptime Kuma + Prometheus/Grafana).
+1. **Monitoring**: add uptime checks and container metrics (e.g., Uptime Kuma + Prometheus/Grafana).
