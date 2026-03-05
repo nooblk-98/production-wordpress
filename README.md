@@ -1,11 +1,8 @@
 <div align="center">
   <img src="./images/logo.png" width="360" alt="WordPress Docker Stack logo" />
 
-# WordPress + Apache + Varnish + Caddy (Docker Compose)
+# Production oriented WordPress Docker stack with + Apache + Varnish + Caddy (Docker Compose) 
 </div>
-
-
-## Production oriented Docker stack:
 
 - **Varnish** (HTTP cache)
 - **WordPress (Apache)**
