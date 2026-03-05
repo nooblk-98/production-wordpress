@@ -1,6 +1,6 @@
 services:
   db:
-    image: mariadb:10
+    image: mariadb:${MARIADB_VERSION:-10}
     container_name: wp_db
     restart: unless-stopped
     command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
@@ -22,7 +22,7 @@ services:
       - wp_net
 
   wordpress:
-    image: wordpress:php8.2-apache
+    image: wordpress:php${PHP_VERSION:-8.2}-apache
     container_name: wp_app
     restart: unless-stopped
     depends_on:
