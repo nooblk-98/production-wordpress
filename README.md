@@ -1,3 +1,5 @@
+![NoobWRT Dashboard](/images/logo.png)
+
 # WordPress + Apache + Varnish + Caddy (Docker Compose)
 
 Production-oriented Docker stack:
