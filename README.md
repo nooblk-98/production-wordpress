@@ -1,5 +1,5 @@
 ﻿<div align="center">
-  <img src="./images/logo.svg" width="360" alt="status-page logo" />
+  <img src="./images/logo.png" width="360" alt="status-page logo" />
 
   </div>
 
