@@ -18,7 +18,13 @@
 
 ## 1) Quick start
 
-1. Copy env file:
+1. clone :
+
+   ```bash
+   git clone https://github.com/nooblk-98/production-wordpress.git && cd production-wordpress
+   ```
+
+2. Copy env file:
 
    ```bash
    cp .env.example .env
@@ -30,15 +36,15 @@
    docker network create wordpress-network
    ```
 
-2. Edit `.env` with secure passwords.
+3. Edit `.env` with secure passwords.
 
-3. Start stack:
+4. Start stack:
 
    ```bash
    docker compose up -d
    ```
 
-4. Open:
+5. Open:
 
 - `http://localhost`
 
