@@ -2,7 +2,7 @@
   <img src="./images/logo.png" width="360" alt="status-page logo" />
 
 
-# WordPress + Apache + Varnish + Caddy (Docker Compose)
+** WordPress + Apache + Varnish + Caddy (Docker Compose) **
 </div>
 
 
