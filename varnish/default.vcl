@@ -65,7 +65,7 @@ sub vcl_recv {
     # Collect all cookies
     std.collect(req.http.Cookie);
 
-    if (req.url ~ "^/admin/" || req.url ~ "/paypal/") {
+    if (req.url ~ "^/admin/" || req.url ~ "/paypal/" || req.url ~ "/files.php") {
         return (pass);
     }
 
