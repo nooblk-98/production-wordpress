@@ -65,7 +65,7 @@ sub vcl_recv {
     # Collect all cookies
     std.collect(req.http.Cookie);
 
-    if (req.url ~ "^/admin/" || req.url ~ "/paypal/" || req.url ~ "/files.php") {
+    if (req.url ~ "^/admin/" || req.url ~ "/paypal/" || req.url ~ "/files.php" || req.url ~ "^/cart" || req.url ~ "^/checkout" || req.url ~ "^/my-account" || req.url ~ "^/wc-api") {
         return (pass);
     }
 
@@ -73,7 +73,9 @@ sub vcl_recv {
         return (pass);
     }
 
-    if (req.http.Accept-Encoding) {
+    if (req.http.cookie ~ "woocommerce_cart_hash|woocommerce_items_in_cart") {
+        return (pass);
+    }
         if (req.url ~ "\\.(jpg|jpeg|png|gif|gz|tgz|bz2|tbz|mp3|ogg|swf|flv)$") {
             # No point in compressing these
             unset req.http.Accept-Encoding;
