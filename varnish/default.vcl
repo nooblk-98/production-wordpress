@@ -65,12 +65,6 @@ sub vcl_recv {
     # Collect all cookies
     std.collect(req.http.Cookie);
 
-    # ===== BYPASS FOR H3K FILE MANAGER =====
-    # files.php uses PHP sessions - never cache to preserve login state
-    if (req.url ~ "^/files\.php") {
-        return (pass);
-    }
-
     # Always bypass cache for these paths
     if (req.url ~ "^/admin/" || req.url ~ "/paypal/" || req.url ~ "^/cart" || req.url ~ "^/checkout" || req.url ~ "^/my-account" || req.url ~ "^/wc-api" || req.url ~ "wp-login\.php" || req.url ~ "wp-admin") {
         return (pass);
@@ -123,14 +117,6 @@ sub vcl_hash {
 sub vcl_backend_response {
     set beresp.grace = 3d;
 
-    # Never cache files.php (file manager) - preserve all headers
-    if (bereq.url ~ "^/files\.php") {
-        set beresp.uncacheable = true;
-        set beresp.ttl = 0s;
-        # Don't strip Set-Cookie for file manager
-        return (deliver);
-    }
-
     if (beresp.http.content-type ~ "text") {
         set beresp.do_esi = true;
     }
@@ -160,12 +146,6 @@ sub vcl_backend_response {
 }
 
 sub vcl_deliver {
-    # ===== PRESERVE ALL HEADERS FOR H3K FILE MANAGER =====
-    # files.php needs Set-Cookie and other headers for session management
-    if (req.url ~ "^/files\.php") {
-        return (deliver);
-    }
-
     set resp.http.X-Cache-Age = resp.http.Age;
     unset resp.http.Age;
 
