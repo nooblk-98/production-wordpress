@@ -191,7 +191,7 @@ Securely manage WordPress files via SFTP:
 
 **Configuration in `.env`:**
 ```env
-SFTP_USER=wpuser
+SFTP_USER=sftp-user
 SFTP_PASSWORD=change_me_sftp_password  # Change this to a strong password!
 ```
 
@@ -202,7 +202,7 @@ SFTP_PASSWORD=change_me_sftp_password  # Change this to a strong password!
 
 **Command line access:**
 ```bash
-sftp -P 2222 wpuser@localhost
+sftp -P 2222 sftp-user@localhost
 ```
 
 **Features:**
@@ -375,7 +375,7 @@ Key variables in `.env`:
 | MYSQL_ROOT_PASSWORD | (required) | Root password |
 | WORDPRESS_DB_HOST | mariadb | Database hostname |
 | WORDPRESS_TABLE_PREFIX | wp_ | Table prefix |
-| SFTP_USER | wpuser | SFTP username |
+| SFTP_USER | sftp-user | SFTP username |
 | SFTP_PASSWORD | (required) | SFTP password |
 | PHP_VERSION | 8.2 | PHP version |
 | MARIADB_VERSION | 10 | MariaDB version |
