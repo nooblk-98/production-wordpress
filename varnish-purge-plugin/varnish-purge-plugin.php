@@ -3,7 +3,7 @@
  * Plugin Name: Varnish Purge Plugin
  * Description: Purges Varnish cache automatically on content updates and provides admin actions for purge all / purge specific URL.
  * Version: 1.0.0
- * Author: Moda Lahiru
+ * Author: Lahiru
  */
 
 if (!defined('ABSPATH')) {
