@@ -66,7 +66,7 @@ sub vcl_recv {
     std.collect(req.http.Cookie);
 
     # Always bypass cache for these paths
-    if (req.url ~ "^/admin/" || req.url ~ "/paypal/" || req.url ~ "^/cart" || req.url ~ "^/checkout" || req.url ~ "^/my-account" || req.url ~ "^/wc-api" || req.url ~ "wp-login\.php" || req.url ~ "wp-admin" || req.url ~ "/files\.php" ) {
+    if (req.url ~ "^/admin/" || req.url ~ "/paypal/" || req.url ~ "^/cart" || req.url ~ "^/checkout" || req.url ~ "^/my-account" || req.url ~ "^/wc-api" || req.url ~ "wp-login\.php" || req.url ~ "wp-admin") {
         return (pass);
     }
 
@@ -117,13 +117,6 @@ sub vcl_hash {
 sub vcl_backend_response {
     set beresp.grace = 3d;
 
-    # ===== BYPASS FOR H3K FILE MANAGER =====
-    if (bereq.url ~ "^/files\.php") {
-        set beresp.uncacheable = true;
-        set beresp.ttl = 0s;
-        return (deliver);
-    }
-
     if (beresp.http.content-type ~ "text") {
         set beresp.do_esi = true;
     }
@@ -140,8 +133,7 @@ sub vcl_backend_response {
     }
 
     # Validate if we need to cache it and prevent from setting cookie
-    # But never strip cookies for files.php
-    if (beresp.ttl > 0s && (bereq.method == "GET" || bereq.method == "HEAD") && bereq.url !~ "^/files\.php") {
+    if (beresp.ttl > 0s && (bereq.method == "GET" || bereq.method == "HEAD")) {
         unset beresp.http.set-cookie;
     }
 
