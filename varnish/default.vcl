@@ -65,17 +65,26 @@ sub vcl_recv {
     # Collect all cookies
     std.collect(req.http.Cookie);
 
-    if (req.url ~ "^/admin/" || req.url ~ "/paypal/" || req.url ~ "/files.php" || req.url ~ "^/cart" || req.url ~ "^/checkout" || req.url ~ "^/my-account" || req.url ~ "^/wc-api") {
+    # Always bypass cache for these paths
+    if (req.url ~ "^/admin/" || req.url ~ "/paypal/" || req.url ~ "files\.php" || req.url ~ "^/cart" || req.url ~ "^/checkout" || req.url ~ "^/my-account" || req.url ~ "^/wc-api" || req.url ~ "wp-login\.php" || req.url ~ "wp-admin") {
         return (pass);
     }
 
+    # Bypass cache for logged-in users
     if (req.http.cookie ~ "wordpress_logged_in_") {
+        return (pass);
+    }
+
+    # Bypass cache for file manager sessions
+    if (req.http.cookie ~ "filemanager_session|fm_session|fileman") {
         return (pass);
     }
 
     if (req.http.cookie ~ "woocommerce_cart_hash|woocommerce_items_in_cart") {
         return (pass);
     }
+
+    if (req.http.Accept-Encoding) {
         if (req.url ~ "\\.(jpg|jpeg|png|gif|gz|tgz|bz2|tbz|mp3|ogg|swf|flv)$") {
             # No point in compressing these
             unset req.http.Accept-Encoding;
