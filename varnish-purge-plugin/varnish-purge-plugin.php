@@ -35,10 +35,39 @@ class Varnish_Purge_Plugin {
     public function sanitize_endpoint($value) {
         $value = trim((string) $value);
         if ($value === '') {
-            return 'http://varnish:6081';
+            return $this->get_default_endpoint();
         }
 
         return untrailingslashit(esc_url_raw($value));
+    }
+
+    private function get_default_endpoint() {
+        $site_url = home_url();
+        $parsed = wp_parse_url($site_url);
+        
+        if (!is_array($parsed)) {
+            return 'http://varnish:6081';
+        }
+
+        $host = isset($parsed['host']) ? $parsed['host'] : 'varnish';
+        $scheme = isset($parsed['scheme']) ? $parsed['scheme'] : 'http';
+        
+        // If it's localhost/127.0.0.1, use container DNS
+        if (in_array($host, array('localhost', '127.0.0.1', '[::1]'), true)) {
+            return 'http://varnish:6081';
+        }
+
+        // For standalone container, check if we can reach varnish directly
+        if (function_exists('gethostbyname')) {
+            $ip = @gethostbyname('varnish');
+            if ($ip !== 'varnish') {
+                // Varnish container is accessible via DNS
+                return $scheme . '://varnish:6081';
+            }
+        }
+
+        // Use WordPress site URL with Varnish port
+        return $scheme . '://' . $host . ':6081';
     }
 
     private function check_connection($endpoint) {
@@ -70,7 +99,7 @@ class Varnish_Purge_Plugin {
             return;
         }
 
-        $endpoint = get_option(self::OPTION_ENDPOINT, 'http://varnish:6081');
+        $endpoint = get_option(self::OPTION_ENDPOINT, $this->get_default_endpoint());
         $message = isset($_GET['vpp_message']) ? sanitize_text_field(wp_unslash($_GET['vpp_message'])) : '';
         $type = isset($_GET['vpp_type']) ? sanitize_text_field(wp_unslash($_GET['vpp_type'])) : 'success';
         $connection_status = $this->check_connection($endpoint);
@@ -213,7 +242,13 @@ class Varnish_Purge_Plugin {
     }
 
     private function send_purge($path, $purge_all) {
-        $endpoint = get_option(self::OPTION_ENDPOINT, 'http://varnish:6081');
+        $endpoint = get_option(self::OPTION_ENDPOINT);
+        
+        // Use smart default if not set
+        if ($endpoint === false || $endpoint === '') {
+            $endpoint = $this->get_default_endpoint();
+        }
+
         $endpoint = untrailingslashit((string) $endpoint);
         $path = $this->normalize_to_path($path);
 
