@@ -235,17 +235,50 @@ class Varnish_Purge_Plugin {
             $args['vpp_message'] = $result->get_error_message();
         } else {
             $code = (int) wp_remote_retrieve_response_code($result);
+            $body = wp_remote_retrieve_body($result);
+            $status_text = (string) wp_remote_retrieve_response_message($result);
+            $varnish_message = $this->extract_varnish_message($body);
+
+            if ($status_text === '') {
+                $status_text = 'Response';
+            }
+
             if ($code >= 200 && $code < 300) {
                 $args['vpp_type'] = 'success';
-                $args['vpp_message'] = $success_message;
+                if ($varnish_message !== '') {
+                    $args['vpp_message'] = $success_message . ' (' . $code . ' ' . $status_text . ' - ' . $varnish_message . ')';
+                } else {
+                    $args['vpp_message'] = $success_message . ' (' . $code . ' ' . $status_text . ')';
+                }
             } else {
                 $args['vpp_type'] = 'error';
-                $args['vpp_message'] = 'Purge failed with status code: ' . $code;
+                if ($varnish_message !== '') {
+                    $args['vpp_message'] = 'Purge failed (' . $code . ' ' . $status_text . ' - ' . $varnish_message . ')';
+                } else {
+                    $args['vpp_message'] = 'Purge failed with status code: ' . $code;
+                }
             }
         }
 
         wp_safe_redirect(add_query_arg($args, admin_url('tools.php')));
         exit;
+    }
+
+    private function extract_varnish_message($body) {
+        $body = trim((string) $body);
+        if ($body === '') {
+            return '';
+        }
+
+        if (preg_match('/<h1[^>]*>(.*?)<\/h1>/is', $body, $matches)) {
+            return trim(wp_strip_all_tags($matches[1]));
+        }
+
+        if (preg_match('/<title[^>]*>(.*?)<\/title>/is', $body, $matches)) {
+            return trim(wp_strip_all_tags($matches[1]));
+        }
+
+        return '';
     }
 }
 
