@@ -42,6 +42,7 @@ services:
       - /opt/www/wordpress:/var/www/html
       - ./php/custom.ini:/usr/local/etc/php/conf.d/custom.ini
       - ./php/apache-mpm.conf:/etc/apache2/conf-enabled/mpm-limits.conf
+      - ./varnish-purge-plugin:/var/www/html/wp-content/plugins/varnish-purge-plugin
     expose:
       - "80"
     healthcheck:

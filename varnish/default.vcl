@@ -28,6 +28,10 @@ sub vcl_recv {
         if (client.ip !~ purger) {
             return (synth(405, "Method not allowed"));
         }
+        if (req.http.X-Purge-All == "1") {
+            ban("req.http.host == " + req.http.host);
+            return (synth(200, "Purged all"));
+        }
         if (req.http.X-Cache-Tags) {
             ban("obj.http.X-Cache-Tags ~ " + req.http.X-Cache-Tags);
         } else {
