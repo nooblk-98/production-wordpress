@@ -83,7 +83,7 @@ services:
     environment:
       SFTP_USERS: ${SFTP_USER:-wpuser}:${SFTP_PASSWORD:-change_me_sftp_password}:33:33
     volumes:
-      - /opt/www/wordpress:/home/wpuser/data
+      - /opt/www/wordpress:/home/files
     ports:
       - "2222:22"
     networks:

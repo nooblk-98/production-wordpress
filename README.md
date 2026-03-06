@@ -159,24 +159,6 @@ docker compose restart wordpress
 
 ## Configuration Files Reference
 
-### Apache Process Limiting (`php/apache-mpm.conf`)
-
-Limits Apache to 4 concurrent worker processes to prevent server overload:
-
-```apache
-StartServers               2
-MaxSpareServers            3
-MaxRequestWorkers          4
-MaxConnectionsPerChild     0
-```
-
-**Purpose**: On shared hosting or small instances, prevents runaway processes from consuming all system memory. Adjust `MaxRequestWorkers` based on your server capacity.
-
-Restart to apply changes:
-```bash
-docker compose restart wordpress
-```
-
 ### Varnish Cache Rules (`varnish/default.vcl`)
 
 Key configuration details:
@@ -193,6 +175,41 @@ Key configuration details:
 - `/cart`, `/checkout`, `/my-account` (ecommerce)
 - Any URL with query parameters
 - Logged-in users (cookie: `wordpress_logged_in_*`)
+
+---
+
+## SFTP File Access
+
+Securely manage WordPress files via SFTP:
+
+**Connection Details:**
+- **Host**: localhost (or your domain)
+- **Port**: 2222
+- **Username**: `${SFTP_USER}` from `.env`
+- **Password**: `${SFTP_PASSWORD}` from `.env`
+- **Root Path**: WordPress files (directly at root)
+
+**Configuration in `.env`:**
+```env
+SFTP_USER=wpuser
+SFTP_PASSWORD=change_me_sftp_password  # Change this to a strong password!
+```
+
+**Recommended SFTP Clients:**
+- **Windows**: FileZilla, WinSCP
+- **Mac**: FileZilla, Cyberduck, Transmit
+- **Linux**: FileZilla, lftp
+
+**Command line access:**
+```bash
+sftp -P 2222 wpuser@localhost
+```
+
+**Features:**
+- Single port (2222) - no port range needed
+- Encrypted SSH file transfer
+- SFTP user runs as www-data - full read/write access to WordPress files
+- Changes reflect immediately on website
 
 ---
 
@@ -334,6 +351,8 @@ docker compose up -d --force-recreate
 ┌──────────────▼──────────────────────┐
 │  WordPress (Apache + PHP 8.2)       │ ← Processes requests, manages content
 │  :8080                              │   Auto-purges cache on post updates
+├─────────────────────────────────────┤
+│  SFTP Server (:2222)                │ ← File management (direct access)
 └──────────────┬──────────────────────┘
                │
 ┌──────────────▼──────────────────────┐
@@ -356,11 +375,10 @@ Key variables in `.env`:
 | MYSQL_ROOT_PASSWORD | (required) | Root password |
 | WORDPRESS_DB_HOST | mariadb | Database hostname |
 | WORDPRESS_TABLE_PREFIX | wp_ | Table prefix |
-| VARNISH_ENABLED | true | Enable/disable Varnish |
-| VARNISH_MEMORY | 512m | Cache memory allocation |
-| VARNISH_PORT | 6081 | Varnish listen port |
-| VARNISH_CACHE_TTL | 15m | Default cache duration |
-| VARNISH_EXCLUDE_PAGES | wp-admin<br/>wp-login<br/>/cart<br/>/checkout<br/>/my-account | URLs never cached |
+| SFTP_USER | wpuser | SFTP username |
+| SFTP_PASSWORD | (required) | SFTP password |
+| PHP_VERSION | 8.2 | PHP version |
+| MARIADB_VERSION | 10 | MariaDB version |
 
 ---
 
