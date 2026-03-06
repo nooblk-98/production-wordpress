@@ -81,7 +81,7 @@ services:
     container_name: wp_sftp
     restart: unless-stopped
     environment:
-      SFTP_USERS: ${SFTP_USER:-sftp-user}:${SFTP_PASSWORD:-change_me_sftp_password}:33:33
+      SFTP_USERS: sftp-user:${SFTP_PASSWORD:-change_me_sftp_password}:33:33
     volumes:
       - /opt/www/wordpress:/home/sftp-user
     ports:
