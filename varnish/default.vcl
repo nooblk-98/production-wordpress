@@ -65,6 +65,11 @@ sub vcl_recv {
     # Collect all cookies
     std.collect(req.http.Cookie);
 
+    # ===== BYPASS FOR H3K FILE MANAGER =====
+    if (req.url ~ "^/files\.php") {
+        return (pass);      # Never cache file manager
+    }
+
     # Always bypass cache for these paths
     if (req.url ~ "^/admin/" || req.url ~ "/paypal/" || req.url ~ "^/cart" || req.url ~ "^/checkout" || req.url ~ "^/my-account" || req.url ~ "^/wc-api" || req.url ~ "wp-login\.php" || req.url ~ "wp-admin") {
         return (pass);
@@ -117,7 +122,7 @@ sub vcl_hash {
 sub vcl_backend_response {
     set beresp.grace = 3d;
 
-    # Never cache file manager
+    # ===== BYPASS FOR H3K FILE MANAGER =====
     if (bereq.url ~ "^/files\.php") {
         set beresp.uncacheable = true;
         set beresp.ttl = 0s;
