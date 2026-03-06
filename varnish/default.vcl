@@ -66,17 +66,12 @@ sub vcl_recv {
     std.collect(req.http.Cookie);
 
     # Always bypass cache for these paths
-    if (req.url ~ "^/admin/" || req.url ~ "/paypal/" || req.url ~ "files\.php" || req.url ~ "^/cart" || req.url ~ "^/checkout" || req.url ~ "^/my-account" || req.url ~ "^/wc-api" || req.url ~ "wp-login\.php" || req.url ~ "wp-admin") {
+    if (req.url ~ "^/admin/" || req.url ~ "/paypal/" || req.url ~ "^/cart" || req.url ~ "^/checkout" || req.url ~ "^/my-account" || req.url ~ "^/wc-api" || req.url ~ "wp-login\.php" || req.url ~ "wp-admin") {
         return (pass);
     }
 
     # Bypass cache for logged-in users
     if (req.http.cookie ~ "wordpress_logged_in_") {
-        return (pass);
-    }
-
-    # Bypass cache for file manager sessions
-    if (req.http.cookie ~ "filemanager_session|fm_session|fileman") {
         return (pass);
     }
 
