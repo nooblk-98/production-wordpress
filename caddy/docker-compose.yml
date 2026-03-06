@@ -1,6 +1,6 @@
 services:
   caddy:
-    image: lahiru98s/caddy-extended
+    image: caddy:latest
     container_name: edge_caddy
     restart: unless-stopped
     env_file:

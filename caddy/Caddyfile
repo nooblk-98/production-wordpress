@@ -6,16 +6,6 @@
 {$SITE_HOST:localhost} {
     encode zstd gzip
 
-    # Rate limiting: {$RATE_LIMIT_EVENTS} requests per {$RATE_LIMIT_WINDOW} per IP
-    # To disable: set RATE_LIMIT_ENABLED=false in .env or comment out this block
-    rate_limit {
-        zone dynamic_zone {
-            key {remote_host}
-            events {$RATE_LIMIT_EVENTS:100}
-            window {$RATE_LIMIT_WINDOW:1m}
-        }
-    }
-
     request_body {
         max_size {$MAX_BODY_SIZE:25MB}
     }
@@ -38,11 +28,6 @@
             write_timeout 30s
             dial_timeout 5s
         }
-    }
-
-    handle_errors {
-        @rate_limited expression `{err.status_code} == 429`
-        respond @rate_limited "{$RATE_LIMIT_MESSAGE:This site is protected from bots. You sent too many requests, and we detected your IP as spam. Please try loading the site again in a few seconds.}" 429
     }
 
     log {
