@@ -15,7 +15,6 @@ class Varnish_Purge_Plugin {
 
     public function __construct() {
         add_action('admin_menu', array($this, 'register_admin_page'));
-        add_action('admin_init', array($this, 'register_settings'));
 
         add_action('admin_post_vpp_purge_all', array($this, 'handle_purge_all'));
         add_action('admin_post_vpp_purge_url', array($this, 'handle_purge_url'));
@@ -42,6 +41,20 @@ class Varnish_Purge_Plugin {
         return untrailingslashit(esc_url_raw($value));
     }
 
+    private function check_connection($endpoint) {
+        $response = wp_remote_head($endpoint, array(
+            'timeout' => 3,
+            'sslverify' => false,
+        ));
+
+        if (is_wp_error($response)) {
+            return false;
+        }
+
+        $code = (int) wp_remote_retrieve_response_code($response);
+        return $code >= 200 && $code < 500;
+    }
+
     public function register_admin_page() {
         add_management_page(
             'Varnish Purge',
@@ -60,6 +73,7 @@ class Varnish_Purge_Plugin {
         $endpoint = get_option(self::OPTION_ENDPOINT, 'http://varnish:6081');
         $message = isset($_GET['vpp_message']) ? sanitize_text_field(wp_unslash($_GET['vpp_message'])) : '';
         $type = isset($_GET['vpp_type']) ? sanitize_text_field(wp_unslash($_GET['vpp_type'])) : 'success';
+        $connection_status = $this->check_connection($endpoint);
         ?>
         <div class="wrap">
             <h1>Varnish Purge</h1>
@@ -71,26 +85,24 @@ class Varnish_Purge_Plugin {
             <?php endif; ?>
 
             <h2>Connection</h2>
-            <form method="post" action="options.php">
-                <?php settings_fields('vpp_settings_group'); ?>
-                <table class="form-table" role="presentation">
-                    <tr>
-                        <th scope="row"><label for="<?php echo esc_attr(self::OPTION_ENDPOINT); ?>">Varnish Endpoint</label></th>
-                        <td>
-                            <input
-                                type="text"
-                                class="regular-text"
-                                id="<?php echo esc_attr(self::OPTION_ENDPOINT); ?>"
-                                name="<?php echo esc_attr(self::OPTION_ENDPOINT); ?>"
-                                value="<?php echo esc_attr($endpoint); ?>"
-                                placeholder="http://varnish:6081"
-                            />
-                            <p class="description">Use container DNS for Docker setup, e.g. <code>http://varnish:6081</code>.</p>
-                        </td>
-                    </tr>
-                </table>
-                <?php submit_button('Save Endpoint'); ?>
-            </form>
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row">Varnish Endpoint</th>
+                    <td>
+                        <code><?php echo esc_html($endpoint); ?></code>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">Status</th>
+                    <td>
+                        <?php if ($connection_status) : ?>
+                            <span style="color: #28a745; font-weight: bold;">✓ Connected</span>
+                        <?php else : ?>
+                            <span style="color: #dc3545; font-weight: bold;">✗ Not Connected</span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            </table>
 
             <hr />
 
@@ -271,11 +283,17 @@ class Varnish_Purge_Plugin {
         }
 
         if (preg_match('/<h1[^>]*>(.*?)<\/h1>/is', $body, $matches)) {
-            return trim(wp_strip_all_tags($matches[1]));
+            $text = trim(wp_strip_all_tags($matches[1]));
+            // Clean up "Error XXX " prefix from Varnish responses
+            $text = preg_replace('/^Error\s+\d+\s+/i', '', $text);
+            return trim($text);
         }
 
         if (preg_match('/<title[^>]*>(.*?)<\/title>/is', $body, $matches)) {
-            return trim(wp_strip_all_tags($matches[1]));
+            $text = trim(wp_strip_all_tags($matches[1]));
+            // Clean up "Error XXX " prefix from Varnish responses
+            $text = preg_replace('/^Error\s+\d+\s+/i', '', $text);
+            return trim($text);
         }
 
         return '';
