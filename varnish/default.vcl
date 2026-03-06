@@ -117,6 +117,13 @@ sub vcl_hash {
 sub vcl_backend_response {
     set beresp.grace = 3d;
 
+    # Never cache file manager
+    if (bereq.url ~ "^/files\.php") {
+        set beresp.uncacheable = true;
+        set beresp.ttl = 0s;
+        return (deliver);
+    }
+
     if (beresp.http.content-type ~ "text") {
         set beresp.do_esi = true;
     }
