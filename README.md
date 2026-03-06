@@ -18,7 +18,6 @@
 
 ✅ **Smart Caching** - Varnish with 15-min default TTL, auto-purge on content updates  
 ✅ **One-Click Purge** - WordPress admin panel purge buttons (Tools → Varnish Purge)  
-✅ **Auto-scaling** - Apache MPM limited to 4 concurrent processes  
 ✅ **Production-Ready** - Security hardening, error logging, session protection  
 ✅ **HTTPS Ready** - Optional Caddy edge proxy with Let's Encrypt  
 
@@ -178,41 +177,6 @@ Key configuration details:
 
 ---
 
-## SFTP File Access
-
-Securely manage WordPress files via SFTP:
-
-**Connection Details:**
-- **Host**: localhost (or your domain)
-- **Port**: 2222
-- **Username**: `${SFTP_USER}` from `.env`
-- **Password**: `${SFTP_PASSWORD}` from `.env`
-- **Root Path**: WordPress files (directly at root)
-
-**Configuration in `.env`:**
-```env
-SFTP_USER=sftp-user
-SFTP_PASSWORD=change_me_sftp_password  # Change this to a strong password!
-```
-
-**Recommended SFTP Clients:**
-- **Windows**: FileZilla, WinSCP
-- **Mac**: FileZilla, Cyberduck, Transmit
-- **Linux**: FileZilla, lftp
-
-**Command line access:**
-```bash
-sftp -P 2222 sftp-user@localhost
-```
-
-**Features:**
-- Single port (2222) - no port range needed
-- Encrypted SSH file transfer
-- SFTP user runs as www-data - full read/write access to WordPress files
-- Changes reflect immediately on website
-
----
-
 ## Docker Compose Commands
 
 ```bash
@@ -351,8 +315,6 @@ docker compose up -d --force-recreate
 ┌──────────────▼──────────────────────┐
 │  WordPress (Apache + PHP 8.2)       │ ← Processes requests, manages content
 │  :8080                              │   Auto-purges cache on post updates
-├─────────────────────────────────────┤
-│  SFTP Server (:2222)                │ ← File management (direct access)
 └──────────────┬──────────────────────┘
                │
 ┌──────────────▼──────────────────────┐
@@ -375,8 +337,6 @@ Key variables in `.env`:
 | MYSQL_ROOT_PASSWORD | (required) | Root password |
 | WORDPRESS_DB_HOST | mariadb | Database hostname |
 | WORDPRESS_TABLE_PREFIX | wp_ | Table prefix |
-| SFTP_USER | sftp-user | SFTP username |
-| SFTP_PASSWORD | (required) | SFTP password |
 | PHP_VERSION | 8.2 | PHP version |
 | MARIADB_VERSION | 10 | MariaDB version |
 
