@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
 }
 
 class Varnish_Purge_Plugin {
-    const OPTION_ENDPOINT = 'vpp_varnish_endpoint';
+    const VARNISH_ENDPOINT = 'http://varnish:6081';
 
     public function __construct() {
         add_action('admin_menu', array($this, 'register_admin_page'));
@@ -24,51 +24,7 @@ class Varnish_Purge_Plugin {
         add_action('trashed_post', array($this, 'auto_purge_on_delete'), 10, 1);
     }
 
-    public function register_settings() {
-        register_setting('vpp_settings_group', self::OPTION_ENDPOINT, array(
-            'type' => 'string',
-            'sanitize_callback' => array($this, 'sanitize_endpoint'),
-            'default' => 'http://varnish:6081',
-        ));
-    }
 
-    public function sanitize_endpoint($value) {
-        $value = trim((string) $value);
-        if ($value === '') {
-            return $this->get_default_endpoint();
-        }
-
-        return untrailingslashit(esc_url_raw($value));
-    }
-
-    private function get_default_endpoint() {
-        $site_url = home_url();
-        $parsed = wp_parse_url($site_url);
-        
-        if (!is_array($parsed)) {
-            return 'http://varnish:6081';
-        }
-
-        $host = isset($parsed['host']) ? $parsed['host'] : 'varnish';
-        $scheme = isset($parsed['scheme']) ? $parsed['scheme'] : 'http';
-        
-        // If it's localhost/127.0.0.1, use container DNS
-        if (in_array($host, array('localhost', '127.0.0.1', '[::1]'), true)) {
-            return 'http://varnish:6081';
-        }
-
-        // For standalone container, check if we can reach varnish directly
-        if (function_exists('gethostbyname')) {
-            $ip = @gethostbyname('varnish');
-            if ($ip !== 'varnish') {
-                // Varnish container is accessible via DNS
-                return $scheme . '://varnish:6081';
-            }
-        }
-
-        // Use WordPress site URL with Varnish port
-        return $scheme . '://' . $host . ':6081';
-    }
 
     private function check_connection($endpoint) {
         $response = wp_remote_head($endpoint, array(
@@ -99,10 +55,9 @@ class Varnish_Purge_Plugin {
             return;
         }
 
-        $endpoint = get_option(self::OPTION_ENDPOINT, $this->get_default_endpoint());
         $message = isset($_GET['vpp_message']) ? sanitize_text_field(wp_unslash($_GET['vpp_message'])) : '';
         $type = isset($_GET['vpp_type']) ? sanitize_text_field(wp_unslash($_GET['vpp_type'])) : 'success';
-        $connection_status = $this->check_connection($endpoint);
+        $connection_status = $this->check_connection(self::VARNISH_ENDPOINT);
         ?>
         <div class="wrap">
             <h1>Varnish Purge</h1>
@@ -118,7 +73,7 @@ class Varnish_Purge_Plugin {
                 <tr>
                     <th scope="row">Varnish Endpoint</th>
                     <td>
-                        <code><?php echo esc_html($endpoint); ?></code>
+                        <code><?php echo esc_html(self::VARNISH_ENDPOINT); ?></code>
                     </td>
                 </tr>
                 <tr>
@@ -242,14 +197,7 @@ class Varnish_Purge_Plugin {
     }
 
     private function send_purge($path, $purge_all) {
-        $endpoint = get_option(self::OPTION_ENDPOINT);
-        
-        // Use smart default if not set
-        if ($endpoint === false || $endpoint === '') {
-            $endpoint = $this->get_default_endpoint();
-        }
-
-        $endpoint = untrailingslashit((string) $endpoint);
+        $endpoint = self::VARNISH_ENDPOINT;
         $path = $this->normalize_to_path($path);
 
         if ($path === '') {
