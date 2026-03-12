@@ -62,6 +62,7 @@ class Varnish_Purge_Plugin {
         $message = isset($_GET['vpp_message']) ? sanitize_text_field(wp_unslash($_GET['vpp_message'])) : '';
         $type = isset($_GET['vpp_type']) ? sanitize_text_field(wp_unslash($_GET['vpp_type'])) : 'success';
         $connection_status = $this->check_connection(self::VARNISH_ENDPOINT);
+        $opcache_status = $this->get_opcache_status_label();
         $log_entries = $this->get_purge_log();
         ?>
         <div class="wrap">
@@ -137,6 +138,7 @@ class Varnish_Purge_Plugin {
                                 <span class="vpp-status-bad">&#10007; Not Connected</span>
                             <?php endif; ?>
                         </div>
+                        <div><strong>OPcache:</strong> <?php echo esc_html($opcache_status); ?></div>
                     </div>
                     <p class="vpp-muted">Checks that Varnish responds to a HEAD request.</p>
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
@@ -362,8 +364,8 @@ class Varnish_Purge_Plugin {
             'headers' => $headers,
             'timeout' => 8,
         ));
-        $this->reset_opcache_if_available();
-        $this->log_purge_result($path, $purge_all, $result);
+        $opcache_note = $this->reset_opcache_if_available();
+        $this->log_purge_result($path, $purge_all, $result, $opcache_note);
         return $result;
     }
 
@@ -448,7 +450,7 @@ class Varnish_Purge_Plugin {
         ));
     }
 
-    private function log_purge_result($path, $purge_all, $result) {
+    private function log_purge_result($path, $purge_all, $result, $opcache_note = '') {
         $entry = array(
             'time' => wp_date('Y-m-d H:i:s'),
             'path' => $path,
@@ -471,6 +473,10 @@ class Varnish_Purge_Plugin {
         } else {
             $entry['status'] = 'OK';
             $entry['message'] = 'Connection successful.';
+        }
+
+        if ($opcache_note !== '') {
+            $entry['message'] = trim($entry['message'] . ' (OPcache: ' . $opcache_note . ')');
         }
 
         $log = $this->get_purge_log();
@@ -497,17 +503,35 @@ class Varnish_Purge_Plugin {
 
     private function reset_opcache_if_available() {
         if (!function_exists('opcache_reset')) {
-            return;
+            return 'unavailable';
         }
 
         if (function_exists('opcache_get_status')) {
             $status = opcache_get_status(false);
             if (is_array($status) && empty($status['opcache_enabled'])) {
-                return;
+                return 'disabled';
             }
         }
 
-        @opcache_reset();
+        $ok = @opcache_reset();
+        return $ok ? 'cleared' : 'failed';
+    }
+
+    private function get_opcache_status_label() {
+        if (!function_exists('opcache_get_status')) {
+            return 'Unavailable';
+        }
+
+        $status = opcache_get_status(false);
+        if (!is_array($status)) {
+            return 'Unavailable';
+        }
+
+        if (empty($status['opcache_enabled'])) {
+            return 'Disabled';
+        }
+
+        return 'Enabled';
     }
 
     private function extract_varnish_message($body) {
