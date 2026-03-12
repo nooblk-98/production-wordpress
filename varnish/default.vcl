@@ -125,21 +125,30 @@ sub vcl_backend_response {
         set beresp.do_gzip = true;
     }
 
-    # Cache only successful responses and 404s that are not marked as private
-    if (beresp.status != 200 && beresp.status != 404 && beresp.http.Cache-Control ~ "private") {
+    # Only cache successful responses and 404s
+    if (beresp.status != 200 && beresp.status != 404) {
         set beresp.uncacheable = true;
-        set beresp.ttl = 86400s;
+        set beresp.ttl = 0s;
         return (deliver);
     }
 
-    # Validate if we need to cache it and prevent from setting cookie
-    if (beresp.ttl > 0s && (bereq.method == "GET" || bereq.method == "HEAD")) {
-        unset beresp.http.set-cookie;
+    # Do not cache personalized responses
+    if (beresp.http.Set-Cookie) {
+        set beresp.uncacheable = true;
+        set beresp.ttl = 0s;
+        return (deliver);
     }
 
-    if (!beresp.http.cache-control) {
-        set beresp.ttl = 0s;
+    # Honor explicit no-cache directives
+    if (beresp.http.Cache-Control ~ "private|no-cache|no-store") {
         set beresp.uncacheable = true;
+        set beresp.ttl = 0s;
+        return (deliver);
+    }
+
+    # Default TTL when backend doesn't send cache-control
+    if (!beresp.http.Cache-Control) {
+        set beresp.ttl = 5m;
     }
 
     return (deliver);
