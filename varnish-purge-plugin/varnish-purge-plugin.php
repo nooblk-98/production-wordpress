@@ -71,58 +71,95 @@ class Varnish_Purge_Plugin {
                     <p><?php echo esc_html($message); ?></p>
                 </div>
             <?php endif; ?>
+            <style>
+                .vpp-grid {
+                    display: grid;
+                    grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
+                    gap: 16px;
+                    margin-top: 16px;
+                }
+                .vpp-card {
+                    background: #fff;
+                    border: 1px solid #c3c4c7;
+                    border-radius: 6px;
+                    padding: 16px;
+                }
+                .vpp-card h2 {
+                    margin-top: 0;
+                    font-size: 16px;
+                }
+                .vpp-inline {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    flex-wrap: wrap;
+                }
+                .vpp-status-ok {
+                    color: #1a7f37;
+                    font-weight: 600;
+                }
+                .vpp-status-bad {
+                    color: #d63638;
+                    font-weight: 600;
+                }
+                .vpp-muted {
+                    color: #646970;
+                    font-size: 12px;
+                }
+                @media (max-width: 900px) {
+                    .vpp-grid { grid-template-columns: 1fr; }
+                }
+            </style>
 
-            <h2>Connection</h2>
-            <table class="form-table" role="presentation">
-                <tr>
-                    <th scope="row">Varnish Endpoint</th>
-                    <td>
-                        <code><?php echo esc_html(self::VARNISH_ENDPOINT); ?></code>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row">Status</th>
-                    <td>
-                        <?php if ($connection_status) : ?>
-                            <span style="color: #28a745; font-weight: bold;">✓ Connected</span>
-                        <?php else : ?>
-                            <span style="color: #dc3545; font-weight: bold;">✗ Not Connected</span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-            </table>
-            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                <?php wp_nonce_field('vpp_test_connection_action', 'vpp_nonce'); ?>
-                <input type="hidden" name="action" value="vpp_test_connection" />
-                <?php submit_button('Test Connection', 'secondary'); ?>
-            </form>
+            <div class="vpp-grid">
+                <div class="vpp-card">
+                    <h2>Connection</h2>
+                    <div class="vpp-inline">
+                        <div><strong>Endpoint:</strong> <code><?php echo esc_html(self::VARNISH_ENDPOINT); ?></code></div>
+                        <div>
+                            <?php if ($connection_status) : ?>
+                                <span class="vpp-status-ok">&#10003; Connected</span>
+                            <?php else : ?>
+                                <span class="vpp-status-bad">&#10007; Not Connected</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <p class="vpp-muted">Checks that Varnish responds to a HEAD request.</p>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                        <?php wp_nonce_field('vpp_test_connection_action', 'vpp_nonce'); ?>
+                        <input type="hidden" name="action" value="vpp_test_connection" />
+                        <?php submit_button('Test Connection', 'secondary'); ?>
+                    </form>
+                </div>
 
-            <hr />
+                <div class="vpp-card">
+                    <h2>Purge All Cache</h2>
+                    <p class="vpp-muted">Ban everything for this host.</p>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                        <?php wp_nonce_field('vpp_purge_all_action', 'vpp_nonce'); ?>
+                        <input type="hidden" name="action" value="vpp_purge_all" />
+                        <?php submit_button('Purge All Cache', 'delete'); ?>
+                    </form>
+                </div>
 
-            <h2>Purge All Cache</h2>
-            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                <?php wp_nonce_field('vpp_purge_all_action', 'vpp_nonce'); ?>
-                <input type="hidden" name="action" value="vpp_purge_all" />
-                <?php submit_button('Purge All Cache', 'delete'); ?>
-            </form>
-
-            <h2>Purge Specific URL</h2>
-            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                <?php wp_nonce_field('vpp_purge_url_action', 'vpp_nonce'); ?>
-                <input type="hidden" name="action" value="vpp_purge_url" />
-                <table class="form-table" role="presentation">
-                    <tr>
-                        <th scope="row"><label for="vpp_url">URL or Path</label></th>
-                        <td>
-                            <input type="text" class="regular-text" id="vpp_url" name="vpp_url" placeholder="/about or https://example.com/about" required />
-                            <p class="description">Enter full URL or path.</p>
-                        </td>
-                    </tr>
-                </table>
-                <?php submit_button('Purge This URL', 'secondary'); ?>
-            </form>
-
-            <hr />
+                <div class="vpp-card">
+                    <h2>Purge Specific URL</h2>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                        <?php wp_nonce_field('vpp_purge_url_action', 'vpp_nonce'); ?>
+                        <input type="hidden" name="action" value="vpp_purge_url" />
+                        <table class="form-table" role="presentation">
+                            <tr>
+                                <th scope="row"><label for="vpp_url">URL or Path</label></th>
+                                <td>
+                                    <input type="text" class="regular-text" id="vpp_url" name="vpp_url" placeholder="/about or https://example.com/about" required />
+                                    <p class="description">Enter full URL or path.</p>
+                                </td>
+                            </tr>
+                        </table>
+                        <?php submit_button('Purge This URL', 'secondary'); ?>
+                    </form>
+                </div>
+            </div>
 
             <h2>Recent Purge Log</h2>
             <?php if (empty($log_entries)) : ?>
@@ -432,3 +469,5 @@ class Varnish_Purge_Plugin {
 }
 
 new Varnish_Purge_Plugin();
+
+
