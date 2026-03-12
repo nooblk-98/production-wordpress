@@ -12,12 +12,15 @@ if (!defined('ABSPATH')) {
 
 class Varnish_Purge_Plugin {
     const VARNISH_ENDPOINT = 'http://varnish:6081';
+    const LOG_LIMIT = 50;
 
     public function __construct() {
         add_action('admin_menu', array($this, 'register_admin_page'));
+        add_action('admin_bar_menu', array($this, 'register_admin_bar'), 100);
 
         add_action('admin_post_vpp_purge_all', array($this, 'handle_purge_all'));
         add_action('admin_post_vpp_purge_url', array($this, 'handle_purge_url'));
+        add_action('admin_post_vpp_test_connection', array($this, 'handle_test_connection'));
 
         add_action('save_post', array($this, 'auto_purge_on_save'), 10, 3);
         add_action('deleted_post', array($this, 'auto_purge_on_delete'), 10, 1);
@@ -58,6 +61,7 @@ class Varnish_Purge_Plugin {
         $message = isset($_GET['vpp_message']) ? sanitize_text_field(wp_unslash($_GET['vpp_message'])) : '';
         $type = isset($_GET['vpp_type']) ? sanitize_text_field(wp_unslash($_GET['vpp_type'])) : 'success';
         $connection_status = $this->check_connection(self::VARNISH_ENDPOINT);
+        $log_entries = $this->get_purge_log();
         ?>
         <div class="wrap">
             <h1>Varnish Purge</h1>
@@ -87,6 +91,11 @@ class Varnish_Purge_Plugin {
                     </td>
                 </tr>
             </table>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('vpp_test_connection_action', 'vpp_nonce'); ?>
+                <input type="hidden" name="action" value="vpp_test_connection" />
+                <?php submit_button('Test Connection', 'secondary'); ?>
+            </form>
 
             <hr />
 
@@ -112,6 +121,36 @@ class Varnish_Purge_Plugin {
                 </table>
                 <?php submit_button('Purge This URL', 'secondary'); ?>
             </form>
+
+            <hr />
+
+            <h2>Recent Purge Log</h2>
+            <?php if (empty($log_entries)) : ?>
+                <p>No purge activity recorded yet.</p>
+            <?php else : ?>
+                <table class="widefat striped">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Path</th>
+                            <th>All</th>
+                            <th>Status</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($log_entries as $entry) : ?>
+                            <tr>
+                                <td><?php echo esc_html($entry['time']); ?></td>
+                                <td><code><?php echo esc_html($entry['path']); ?></code></td>
+                                <td><?php echo !empty($entry['purge_all']) ? 'Yes' : 'No'; ?></td>
+                                <td><?php echo esc_html($entry['status']); ?></td>
+                                <td><?php echo esc_html($entry['message']); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -143,6 +182,24 @@ class Varnish_Purge_Plugin {
 
         $result = $this->send_purge($path, false);
         $this->redirect_with_result($result, 'URL purge requested: ' . $path);
+    }
+
+    public function handle_test_connection() {
+        if (!current_user_can('manage_options')) {
+            wp_die('Not allowed');
+        }
+
+        check_admin_referer('vpp_test_connection_action', 'vpp_nonce');
+
+        $ok = $this->check_connection(self::VARNISH_ENDPOINT);
+        if ($ok) {
+            $this->log_purge_result('connection', false, null);
+            $this->redirect_with_result(null, 'Connection successful.');
+        }
+
+        $error = new WP_Error('connection_failed', 'Connection failed.');
+        $this->log_purge_result('connection', false, $error);
+        $this->redirect_with_result($error, 'Connection failed.');
     }
 
     public function auto_purge_on_save($post_id, $post, $update) {
@@ -213,11 +270,13 @@ class Varnish_Purge_Plugin {
             $headers['X-Purge-All'] = '1';
         }
 
-        return wp_remote_request($url, array(
+        $result = wp_remote_request($url, array(
             'method' => 'PURGE',
             'headers' => $headers,
             'timeout' => 8,
         ));
+        $this->log_purge_result($path, $purge_all, $result);
+        return $result;
     }
 
     private function get_purge_host_header() {
@@ -245,7 +304,10 @@ class Varnish_Purge_Plugin {
             'page' => 'vpp-varnish-purge',
         );
 
-        if (is_wp_error($result)) {
+        if ($result === null) {
+            $args['vpp_type'] = 'success';
+            $args['vpp_message'] = $success_message;
+        } elseif (is_wp_error($result)) {
             $args['vpp_type'] = 'error';
             $args['vpp_message'] = $result->get_error_message();
         } else {
@@ -277,6 +339,72 @@ class Varnish_Purge_Plugin {
 
         wp_safe_redirect(add_query_arg($args, admin_url('tools.php')));
         exit;
+    }
+
+    public function register_admin_bar($wp_admin_bar) {
+        if (!is_admin_bar_showing() || !current_user_can('manage_options')) {
+            return;
+        }
+
+        $last = $this->get_last_purge_entry();
+        if (!$last) {
+            $title = 'Varnish: No recent purge';
+        } else {
+            $title = 'Varnish: ' . $last['status'];
+        }
+
+        $wp_admin_bar->add_node(array(
+            'id' => 'vpp-varnish-status',
+            'title' => esc_html($title),
+            'href' => admin_url('tools.php?page=vpp-varnish-purge'),
+        ));
+    }
+
+    private function log_purge_result($path, $purge_all, $result) {
+        $entry = array(
+            'time' => wp_date('Y-m-d H:i:s'),
+            'path' => $path,
+            'purge_all' => $purge_all ? 1 : 0,
+            'status' => '',
+            'message' => '',
+        );
+
+        if (is_wp_error($result)) {
+            $entry['status'] = 'Error';
+            $entry['message'] = $result->get_error_message();
+        } elseif ($result !== null) {
+            $code = (int) wp_remote_retrieve_response_code($result);
+            $status_text = (string) wp_remote_retrieve_response_message($result);
+            if ($status_text === '') {
+                $status_text = 'Response';
+            }
+            $entry['status'] = $code . ' ' . $status_text;
+            $entry['message'] = $this->extract_varnish_message(wp_remote_retrieve_body($result));
+        } else {
+            $entry['status'] = 'OK';
+            $entry['message'] = 'Connection successful.';
+        }
+
+        $log = $this->get_purge_log();
+        array_unshift($log, $entry);
+        $log = array_slice($log, 0, self::LOG_LIMIT);
+        update_option('vpp_purge_log', $log, false);
+    }
+
+    private function get_purge_log() {
+        $log = get_option('vpp_purge_log', array());
+        if (!is_array($log)) {
+            return array();
+        }
+        return $log;
+    }
+
+    private function get_last_purge_entry() {
+        $log = $this->get_purge_log();
+        if (empty($log)) {
+            return null;
+        }
+        return $log[0];
     }
 
     private function extract_varnish_message($body) {
