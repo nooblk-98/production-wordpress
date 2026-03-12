@@ -206,7 +206,7 @@ class Varnish_Purge_Plugin {
 
         $url = $endpoint . $path;
         $headers = array(
-            'Host' => wp_parse_url(home_url(), PHP_URL_HOST),
+            'Host' => $this->get_purge_host_header(),
         );
 
         if ($purge_all) {
@@ -218,6 +218,26 @@ class Varnish_Purge_Plugin {
             'headers' => $headers,
             'timeout' => 8,
         ));
+    }
+
+    private function get_purge_host_header() {
+        $parts = wp_parse_url(home_url());
+        if (!is_array($parts)) {
+            return '';
+        }
+
+        $host = isset($parts['host']) ? $parts['host'] : '';
+        $port = isset($parts['port']) ? (int) $parts['port'] : 0;
+
+        if ($host === '') {
+            return '';
+        }
+
+        if ($port > 0) {
+            return $host . ':' . $port;
+        }
+
+        return $host;
     }
 
     private function redirect_with_result($result, $success_message) {
