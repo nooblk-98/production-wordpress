@@ -362,6 +362,7 @@ class Varnish_Purge_Plugin {
             'headers' => $headers,
             'timeout' => 8,
         ));
+        $this->reset_opcache_if_available();
         $this->log_purge_result($path, $purge_all, $result);
         return $result;
     }
@@ -492,6 +493,21 @@ class Varnish_Purge_Plugin {
             return null;
         }
         return $log[0];
+    }
+
+    private function reset_opcache_if_available() {
+        if (!function_exists('opcache_reset')) {
+            return;
+        }
+
+        if (function_exists('opcache_get_status')) {
+            $status = opcache_get_status(false);
+            if (is_array($status) && empty($status['opcache_enabled'])) {
+                return;
+            }
+        }
+
+        @opcache_reset();
     }
 
     private function extract_varnish_message($body) {
