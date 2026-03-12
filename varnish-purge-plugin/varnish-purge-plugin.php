@@ -21,7 +21,6 @@ class Varnish_Purge_Plugin {
         add_action('admin_post_vpp_purge_all', array($this, 'handle_purge_all'));
         add_action('admin_post_vpp_purge_url', array($this, 'handle_purge_url'));
         add_action('admin_post_vpp_test_connection', array($this, 'handle_test_connection'));
-        add_action('admin_post_vpp_clear_log', array($this, 'handle_clear_log'));
 
         add_action('save_post', array($this, 'auto_purge_on_save'), 10, 3);
         add_action('deleted_post', array($this, 'auto_purge_on_delete'), 10, 1);
@@ -63,7 +62,6 @@ class Varnish_Purge_Plugin {
         $type = isset($_GET['vpp_type']) ? sanitize_text_field(wp_unslash($_GET['vpp_type'])) : 'success';
         $connection_status = $this->check_connection(self::VARNISH_ENDPOINT);
         $opcache_status = $this->get_opcache_status_label();
-        $log_entries = $this->get_purge_log();
         ?>
         <div class="wrap">
             <h1>Varnish Purge</h1>
@@ -107,19 +105,6 @@ class Varnish_Purge_Plugin {
                 .vpp-muted {
                     color: #646970;
                     font-size: 12px;
-                }
-                .vpp-log-controls {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    flex-wrap: wrap;
-                    margin-bottom: 10px;
-                }
-                .vpp-log-filter {
-                    max-width: 320px;
-                }
-                .vpp-log-summary {
-                    cursor: pointer;
                 }
                 @media (max-width: 900px) {
                     .vpp-grid { grid-template-columns: 1fr; }
@@ -176,59 +161,6 @@ class Varnish_Purge_Plugin {
                     </form>
                 </div>
             </div>
-
-            <details open>
-                <summary class="vpp-log-summary"><h2 style="display:inline;">Recent Purge Log</h2></summary>
-                <div class="vpp-log-controls">
-                    <input type="search" class="regular-text vpp-log-filter" id="vpp-log-filter" placeholder="Filter by path/status/message" aria-label="Filter purge log" />
-                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('vpp_clear_log_action', 'vpp_nonce'); ?>
-                        <input type="hidden" name="action" value="vpp_clear_log" />
-                        <?php submit_button('Clear Log', 'secondary', 'submit', false); ?>
-                    </form>
-                </div>
-                <?php if (empty($log_entries)) : ?>
-                    <p>No purge activity recorded yet.</p>
-                <?php else : ?>
-                    <table class="widefat striped" id="vpp-log-table">
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Path</th>
-                                <th>All</th>
-                                <th>Status</th>
-                                <th>Message</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($log_entries as $entry) : ?>
-                                <tr>
-                                    <td><?php echo esc_html($entry['time']); ?></td>
-                                    <td><code><?php echo esc_html($entry['path']); ?></code></td>
-                                    <td><?php echo !empty($entry['purge_all']) ? 'Yes' : 'No'; ?></td>
-                                    <td><?php echo esc_html($entry['status']); ?></td>
-                                    <td><?php echo esc_html($entry['message']); ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                    <script>
-                        (function () {
-                            var input = document.getElementById('vpp-log-filter');
-                            var table = document.getElementById('vpp-log-table');
-                            if (!input || !table) { return; }
-                            input.addEventListener('input', function () {
-                                var q = input.value.toLowerCase();
-                                var rows = table.tBodies[0].rows;
-                                for (var i = 0; i < rows.length; i++) {
-                                    var text = rows[i].innerText.toLowerCase();
-                                    rows[i].style.display = text.indexOf(q) !== -1 ? '' : 'none';
-                                }
-                            });
-                        })();
-                    </script>
-                <?php endif; ?>
-            </details>
         </div>
         <?php
     }
@@ -278,17 +210,6 @@ class Varnish_Purge_Plugin {
         $error = new WP_Error('connection_failed', 'Connection failed.');
         $this->log_purge_result('connection', false, $error);
         $this->redirect_with_result($error, 'Connection failed.');
-    }
-
-    public function handle_clear_log() {
-        if (!current_user_can('manage_options')) {
-            wp_die('Not allowed');
-        }
-
-        check_admin_referer('vpp_clear_log_action', 'vpp_nonce');
-
-        update_option('vpp_purge_log', array(), false);
-        $this->redirect_with_result(null, 'Purge log cleared.');
     }
 
     public function auto_purge_on_save($post_id, $post, $update) {
@@ -559,5 +480,7 @@ class Varnish_Purge_Plugin {
 }
 
 new Varnish_Purge_Plugin();
+
+
 
 
