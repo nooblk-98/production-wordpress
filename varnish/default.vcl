@@ -111,11 +111,21 @@ sub vcl_hash {
     } else {
         hash_data(server.ip);
     }
+    hash_data(req.url);
+    if (req.http.X-Forwarded-Proto) {
+        hash_data(req.http.X-Forwarded-Proto);
+    }
     return (lookup);
 }
 
 sub vcl_backend_response {
     set beresp.grace = 3d;
+
+    if (beresp.status >= 300 && beresp.status < 400) {
+        set beresp.uncacheable = true;
+        set beresp.ttl = 0s;
+        return (deliver);
+    }
 
     if (beresp.http.content-type ~ "text") {
         set beresp.do_esi = true;
